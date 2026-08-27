@@ -49,6 +49,31 @@ export default function HoldAndAnswerGame() {
     ? (multiQuery.data ?? []).map((r) => r.deck.name).join(' + ')
     : (deck?.name ?? '')
 
+  const saveMutation = useMutation({
+    mutationFn: (payload: { score: number; totalCards: number; correctCards: number }) =>
+      decksApi.saveSession(token!, primaryId, {
+        gameType: 'hold_and_answer',
+        ...payload,
+      }),
+  })
+
+  const [index, setIndex] = useState(0)
+  const [flipped, setFlipped] = useState(false)
+  const [results, setResults] = useState<RoundResult[]>([])
+  const [finished, setFinished] = useState(false)
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (!deck || cards.length === 0) {
+    return <div className="container py-8">Deck sem cards para jogar.</div>
+  }
+
   const current = cards[index]
   const total = cards.length
   const correct = results.filter((r) => r.hit).length
