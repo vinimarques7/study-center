@@ -20,6 +20,8 @@ decksRouter.get('/', requireAuth, async (c) => {
       description: decks.description,
       ownerId: decks.ownerId,
       isPublic: decks.isPublic,
+      pinEmoji: decks.pinEmoji,
+      pinLabel: decks.pinLabel,
       createdAt: decks.createdAt,
       cardCount: sql<number>`count(${cards.id})::int`,
     })
@@ -42,6 +44,8 @@ decksRouter.get('/public', async (c) => {
       description: decks.description,
       ownerId: decks.ownerId,
       isPublic: decks.isPublic,
+      pinEmoji: decks.pinEmoji,
+      pinLabel: decks.pinLabel,
       createdAt: decks.createdAt,
       cardCount: sql<number>`count(${cards.id})::int`,
     })

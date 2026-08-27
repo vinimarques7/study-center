@@ -89,6 +89,8 @@ export const decksApi = {
   get: (token: string, id: string) =>
     request<{ deck: Deck; cards: Card[] }>(`/decks/${id}`, { token }),
 
+  getMulti: (token: string, ids: string[]) =>
+    Promise.all(ids.map((id) => request<{ deck: Deck; cards: Card[] }>(`/decks/${id}`, { token }))),
   create: (token: string, body: { name: string; description?: string; isPublic?: boolean }) =>
     request<{ deck: Deck }>('/decks', { method: 'POST', body: JSON.stringify(body), token }),
 

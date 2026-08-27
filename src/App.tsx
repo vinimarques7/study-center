@@ -37,6 +37,8 @@ export default function App() {
               <Route path="/decks/:id" element={<DeckPage />} />
               <Route path="/decks/:id/play/hold" element={<HoldAndAnswerGame />} />
               <Route path="/decks/:id/play/quiz" element={<QuizGame />} />
+              <Route path="/play/hold" element={<HoldAndAnswerGame />} />
+              <Route path="/play/quiz" element={<QuizGame />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
 

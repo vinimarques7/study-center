@@ -11,6 +11,7 @@ import {
   Trash2,
   ArrowLeft,
   Image as ImageIcon,
+  RotateCcw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
@@ -37,6 +38,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { pluralize } from '@/lib/utils'
+import { useLocalOrder } from '@/lib/useLocalOrder'
 
 const DIFFICULTY_LABEL = { easy: '🟢 Fácil', medium: '🟡 Médio', hard: '🔴 Difícil' }
 
@@ -366,6 +368,13 @@ export default function DeckPage() {
     enabled: !!token && !!id,
   })
 
+  // Must be called unconditionally (Rules of Hooks) — before any early returns
+  const rawCards = data?.cards ?? []
+  const { ordered: cards, dragHandlers, resetOrder } = useLocalOrder(
+    rawCards,
+    `sc_card_order_${id}`,
+  )
+
   const deleteMutation = useMutation({
     mutationFn: (cardId: string) => cardsApi.delete(token!, cardId),
     onSuccess: () => {
@@ -398,7 +407,6 @@ export default function DeckPage() {
   }
 
   const deck = data?.deck
-  const cards = data?.cards ?? []
 
   if (!deck) return <div className="container py-8">Deck não encontrado.</div>
 
@@ -420,7 +428,8 @@ export default function DeckPage() {
               <p className="text-muted-foreground mt-1">{deck.description}</p>
             )}
             <p className="text-sm text-muted-foreground mt-2">
-              {pluralize(cards.length, 'card', 'cards')}
+              {pluralize(rawCards.length, 'card', 'cards')}
+              {rawCards.length > 1 && ' — arraste para reordenar'}
             </p>
           </div>
 
@@ -451,6 +460,11 @@ export default function DeckPage() {
               <Plus className="h-4 w-4" />
               Novo card
             </Button>
+            {rawCards.length > 1 && (
+              <Button size="sm" variant="ghost" onClick={resetOrder} title="Resetar ordem">
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -467,16 +481,24 @@ export default function DeckPage() {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {cards.map((card) => (
-            <FlashCard
-              key={card.id}
-              card={card}
-              expanded={expandedCardId === card.id}
-              onToggle={() => setExpandedCardId((prev) => (prev === card.id ? null : card.id))}
-              onEdit={() => handleEdit(card)}
-              onDelete={() => handleDelete(card.id)}
-            />
-          ))}
+          {cards.map((card) => {
+            const dp = dragHandlers(card.id)
+            return (
+              <div
+                key={card.id}
+                {...dp}
+                className={`transition-transform ${dp['data-drag-over'] ? 'scale-[1.02] ring-2 ring-primary rounded-xl' : ''}`}
+              >
+                <FlashCard
+                  card={card}
+                  expanded={expandedCardId === card.id}
+                  onToggle={() => setExpandedCardId((prev) => (prev === card.id ? null : card.id))}
+                  onEdit={() => handleEdit(card)}
+                  onDelete={() => handleDelete(card.id)}
+                />
+              </div>
+            )
+          })}
         </div>
       )}
 

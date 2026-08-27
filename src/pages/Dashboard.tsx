@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, BookOpen, Play, Edit2, Trash2, Globe, Lock, MoreVertical, Tag } from 'lucide-react'
+import { Plus, BookOpen, Play, Edit2, Trash2, Globe, Lock, MoreVertical, Tag, Users, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { decksApi, type DeckWithCount } from '@/lib/api'
@@ -21,6 +21,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { pluralize } from '@/lib/utils'
+import { useLocalOrder } from '@/lib/useLocalOrder'
 
 const DECK_PINS = [
   { emoji: '🟢', label: 'Tranquilo' },
@@ -34,6 +35,131 @@ const DECK_PINS = [
   { emoji: '😤', label: 'Preciso estudar' },
   { emoji: '😌', label: 'Dominei' },
 ] as const
+
+// ─── GameLaunchDialog ─────────────────────────────────────────────────────────
+
+function GameLaunchDialog({
+  open,
+  onOpenChange,
+  primaryDeckId,
+  allDecks,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  primaryDeckId: string
+  allDecks: DeckWithCount[]
+}) {
+  const navigate = useNavigate()
+  const [selected, setSelected] = useState<Set<string>>(new Set([primaryDeckId]))
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        if (next.size === 1) return prev // keep at least one
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  function launch(type: 'quiz' | 'hold') {
+    const ids = [...selected]
+    const route =
+      ids.length === 1
+        ? `/decks/${ids[0]}/play/${type}`
+        : `/play/${type}?decks=${ids.join(',')}`
+    navigate(route)
+    onOpenChange(false)
+  }
+
+  const eligibleDecks = allDecks.filter((d) => d.cardCount >= 2)
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (v) setSelected(new Set([primaryDeckId]))
+        onOpenChange(v)
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Play className="h-5 w-5 text-primary" />
+            Escolher modo de jogo
+          </DialogTitle>
+          <DialogDescription>
+            Selecione os decks e o modo que deseja jogar.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Deck selector */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Decks ({selected.size} selecionado{selected.size !== 1 ? 's' : ''})</p>
+          <div className="max-h-44 overflow-y-auto space-y-1 rounded-lg border p-2">
+            {eligibleDecks.map((d) => (
+              <label
+                key={d.id}
+                className={`flex items-center gap-3 rounded-md px-2 py-1.5 cursor-pointer transition-colors ${
+                  selected.has(d.id) ? 'bg-primary/10' : 'hover:bg-muted'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(d.id)}
+                  onChange={() => toggle(d.id)}
+                  className="accent-primary"
+                />
+                <span className="text-sm flex-1 truncate">
+                  {d.pinEmoji && <span className="mr-1">{d.pinEmoji}</span>}
+                  {d.name}
+                </span>
+                <span className="text-xs text-muted-foreground">{d.cardCount} cards</span>
+              </label>
+            ))}
+            {eligibleDecks.length === 0 && (
+              <p className="text-sm text-muted-foreground p-2">Nenhum deck com ≥ 2 cards.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Game mode buttons */}
+        <div className="grid grid-cols-2 gap-3 pt-1">
+          <button
+            type="button"
+            onClick={() => launch('quiz')}
+            disabled={selected.size === 0}
+            className="flex flex-col items-center gap-2 rounded-xl border-2 border-transparent bg-muted p-4 hover:border-primary hover:bg-primary/5 transition-all disabled:opacity-40"
+          >
+            <Play className="h-7 w-7 text-primary" />
+            <div className="text-center">
+              <p className="text-sm font-semibold">Quiz Solo</p>
+              <p className="text-xs text-muted-foreground">Múltipla escolha com timer</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => launch('hold')}
+            disabled={selected.size === 0}
+            className="flex flex-col items-center gap-2 rounded-xl border-2 border-transparent bg-muted p-4 hover:border-primary hover:bg-primary/5 transition-all disabled:opacity-40"
+          >
+            <Users className="h-7 w-7 text-primary" />
+            <div className="text-center">
+              <p className="text-sm font-semibold">Segura e Responde</p>
+              <p className="text-xs text-muted-foreground">Em dupla, sem timer</p>
+            </div>
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── CreateDeckDialog ─────────────────────────────────────────────────────────
 
 function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
   const { token } = useAuth()
@@ -119,7 +245,17 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
   )
 }
 
-function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: string) => void }) {
+function DeckCard({
+  deck,
+  onDelete,
+  onLaunch,
+  dragProps,
+}: {
+  deck: DeckWithCount
+  onDelete: (id: string) => void
+  onLaunch: (id: string) => void
+  dragProps: ReturnType<ReturnType<typeof useLocalOrder>['dragHandlers']>
+}) {
   const { token } = useAuth()
   const qc = useQueryClient()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -155,7 +291,23 @@ function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: stri
   }
 
   return (
-    <Card className="group hover:shadow-md transition-shadow">
+    <Card
+      className={`group hover:shadow-md transition-all relative cursor-grab active:cursor-grabbing select-none ${
+        dragProps['data-drag-over'] ? 'ring-2 ring-primary scale-[1.02]' : ''
+      }`}
+      {...dragProps}
+    >
+      {/* Prominent pin badge */}
+      {deck.pinEmoji && (
+        <div
+          className="absolute -top-2.5 -right-2.5 z-10 flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs font-medium shadow-sm"
+          title={deck.pinLabel ?? ''}
+        >
+          <span className="text-base leading-none">{deck.pinEmoji}</span>
+          {deck.pinLabel && <span className="text-muted-foreground">{deck.pinLabel}</span>}
+        </div>
+      )}
+
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -168,7 +320,7 @@ function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: stri
               <button
                 title="Definir pin"
                 className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-muted transition-opacity"
-                onClick={() => setPinOpen((v) => !v)}
+                onClick={(e) => { e.stopPropagation(); setPinOpen((v) => !v) }}
               >
                 <Tag className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -221,7 +373,7 @@ function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: stri
             <div className="relative">
               <button
                 className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-muted transition-opacity"
-                onClick={() => setMenuOpen((v) => !v)}
+                onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }}
               >
                 <MoreVertical className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -236,10 +388,7 @@ function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: stri
                   </Link>
                   <button
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent text-destructive"
-                    onClick={() => {
-                      setMenuOpen(false)
-                      onDelete(deck.id)
-                    }}
+                    onClick={() => { setMenuOpen(false); onDelete(deck.id) }}
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Excluir
                   </button>
@@ -255,25 +404,11 @@ function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: stri
 
       <CardContent className="pb-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="secondary">
-            {pluralize(deck.cardCount, 'card', 'cards')}
-          </Badge>
+          <Badge variant="secondary">{pluralize(deck.cardCount, 'card', 'cards')}</Badge>
           {deck.isPublic ? (
-            <Badge variant="outline" className="gap-1">
-              <Globe className="h-3 w-3" /> Público
-            </Badge>
+            <Badge variant="outline" className="gap-1"><Globe className="h-3 w-3" /> Público</Badge>
           ) : (
-            <Badge variant="outline" className="gap-1">
-              <Lock className="h-3 w-3" /> Privado
-            </Badge>
-          )}
-          {deck.pinEmoji && (
-            <Badge
-              variant="secondary"
-              className="gap-1 bg-primary/10 text-primary border-primary/20 cursor-default"
-            >
-              {deck.pinEmoji} {deck.pinLabel}
-            </Badge>
+            <Badge variant="outline" className="gap-1"><Lock className="h-3 w-3" /> Privado</Badge>
           )}
         </div>
       </CardContent>
@@ -283,11 +418,13 @@ function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: stri
           <Link to={`/decks/${deck.id}`}>Ver cards</Link>
         </Button>
         {deck.cardCount >= 2 && (
-          <Button size="sm" asChild className="flex-1">
-            <Link to={`/decks/${deck.id}/play/quiz`}>
-              <Play className="h-3.5 w-3.5" />
-              Jogar
-            </Link>
+          <Button
+            size="sm"
+            className="flex-1"
+            onClick={() => onLaunch(deck.id)}
+          >
+            <Play className="h-3.5 w-3.5" />
+            Jogar
           </Button>
         )}
       </CardFooter>
@@ -298,6 +435,7 @@ function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: stri
 export default function Dashboard() {
   const { token } = useAuth()
   const qc = useQueryClient()
+  const [launchDeckId, setLaunchDeckId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['decks'],
@@ -320,7 +458,8 @@ export default function Dashboard() {
     }
   }
 
-  const decks = data?.decks ?? []
+  const rawDecks = data?.decks ?? []
+  const { ordered: decks, dragHandlers, resetOrder } = useLocalOrder(rawDecks, 'sc_deck_order')
 
   return (
     <div className="container py-8 page-enter">
@@ -328,12 +467,19 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold">Meus Decks</h1>
           <p className="text-muted-foreground mt-1">
-            {decks.length > 0
-              ? `${pluralize(decks.length, 'deck', 'decks')} no total`
+            {rawDecks.length > 0
+              ? `${pluralize(rawDecks.length, 'deck', 'decks')} — arraste para reordenar`
               : 'Nenhum deck ainda'}
           </p>
         </div>
-        <CreateDeckDialog onCreated={() => qc.invalidateQueries({ queryKey: ['decks'] })} />
+        <div className="flex items-center gap-2">
+          {rawDecks.length > 1 && (
+            <Button variant="ghost" size="sm" onClick={resetOrder} title="Resetar ordem">
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          )}
+          <CreateDeckDialog onCreated={() => qc.invalidateQueries({ queryKey: ['decks'] })} />
+        </div>
       </div>
 
       {isLoading ? (
@@ -350,7 +496,7 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
-      ) : decks.length === 0 ? (
+      ) : rawDecks.length === 0 ? (
         <div className="text-center py-24 space-y-4">
           <div className="mx-auto w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
             <BookOpen className="h-8 w-8 text-muted-foreground" />
@@ -359,11 +505,26 @@ export default function Dashboard() {
           <p className="text-muted-foreground">Crie seu primeiro deck para começar a estudar.</p>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {decks.map((deck) => (
-            <DeckCard key={deck.id} deck={deck} onDelete={confirmDelete} />
+            <DeckCard
+              key={deck.id}
+              deck={deck}
+              onDelete={confirmDelete}
+              onLaunch={setLaunchDeckId}
+              dragProps={dragHandlers(deck.id)}
+            />
           ))}
         </div>
+      )}
+
+      {launchDeckId && (
+        <GameLaunchDialog
+          open={!!launchDeckId}
+          onOpenChange={(v) => { if (!v) setLaunchDeckId(null) }}
+          primaryDeckId={launchDeckId}
+          allDecks={rawDecks}
+        />
       )}
     </div>
   )

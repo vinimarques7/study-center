@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { ArrowLeft, Trophy, Clock3, RotateCcw, CheckCircle2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
-import { decksApi } from '@/lib/api'
+import { decksApi, type Card, type QuizQuestion } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card as UICard, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { calcQuizPoints } from '@/lib/utils'
 
@@ -19,27 +19,73 @@ interface AnswerRecord {
   points: number
 }
 
+function generateQuestions(allCards: Card[], count: number): QuizQuestion[] {
+  const shuffled = [...allCards].sort(() => Math.random() - 0.5).slice(0, count)
+  return shuffled.map((card) => {
+    const distractors = allCards
+      .filter((c) => c.id !== card.id)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3)
+      .map((c) => c.answer)
+    const options = [...distractors, card.answer].sort(() => Math.random() - 0.5)
+    return {
+      id: card.id,
+      question: card.question,
+      explanation: card.explanation,
+      analogy: card.analogy,
+      correctAnswer: card.answer,
+      options,
+    }
+  })
+}
+
 export default function QuizGame() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const { token } = useAuth()
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['quiz', id],
-    queryFn: () => decksApi.getQuiz(token!, id!, 10),
-    enabled: !!token && !!id,
+  const multiIds = searchParams.get('decks')?.split(',').filter(Boolean) ?? []
+  const isMulti = multiIds.length > 0
+  const primaryId = isMulti ? multiIds[0] : (id ?? '')
+
+  // Single-deck: use server-generated quiz
+  const singleQuery = useQuery({
+    queryKey: ['quiz', primaryId],
+    queryFn: () => decksApi.getQuiz(token!, primaryId, 10),
+    enabled: !!token && !!primaryId && !isMulti,
   })
+
+  // Multi-deck: fetch all decks, then generate client-side
+  const multiQuery = useQuery({
+    queryKey: ['deck-multi', multiIds.join(',')],
+    queryFn: () => decksApi.getMulti(token!, multiIds),
+    enabled: !!token && isMulti,
+  })
+
+  const isLoading = isMulti ? multiQuery.isLoading : singleQuery.isLoading
+
+  const questions: QuizQuestion[] = useMemo(() => {
+    if (isMulti) {
+      const allCards = (multiQuery.data ?? []).flatMap((r) => r.cards)
+      if (allCards.length < 2) return []
+      return generateQuestions(allCards, 10)
+    }
+    return singleQuery.data?.questions ?? []
+  }, [isMulti, multiQuery.data, singleQuery.data])
+
+  const deckName = isMulti
+    ? (multiQuery.data ?? []).map((r) => r.deck.name).join(' + ')
+    : (singleQuery.data?.deckName ?? 'Quiz')
 
   const saveMutation = useMutation({
     mutationFn: (payload: { score: number; totalCards: number; correctCards: number }) =>
-      decksApi.saveSession(token!, id!, {
+      decksApi.saveSession(token!, primaryId, {
         gameType: 'quiz',
         ...payload,
       }),
   })
 
-  const questions = data?.questions ?? []
-  const deckName = data?.deckName ?? 'Quiz'
-
+  const [questionsKey, setQuestionsKey] = useState(0) // forces regeneration on restart
   const [idx, setIdx] = useState(0)
   const [answers, setAnswers] = useState<AnswerRecord[]>([])
   const [timeLeft, setTimeLeft] = useState(TIME_PER_QUESTION_MS)
@@ -111,7 +157,8 @@ export default function QuizGame() {
     setTimeLeft(TIME_PER_QUESTION_MS)
     setLocked(false)
     setFinished(false)
-    await refetch()
+    setQuestionsKey((k) => k + 1)
+    if (!isMulti) await singleQuery.refetch()
   }
 
   if (isLoading) {
@@ -126,18 +173,18 @@ export default function QuizGame() {
     return (
       <div className="container py-8">
         <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
-          <Link to={`/decks/${id}`}>
+          <Link to={`/decks/${primaryId}`}>
             <ArrowLeft className="h-4 w-4" /> Voltar
           </Link>
         </Button>
-        <Card>
+        <UICard>
           <CardContent className="py-8 text-center space-y-3">
             <h2 className="text-xl font-semibold">Não foi possível iniciar o quiz</h2>
             <p className="text-muted-foreground">
               O deck precisa ter pelo menos 2 cards para gerar opções de múltipla escolha.
             </p>
           </CardContent>
-        </Card>
+        </UICard>
       </div>
     )
   }
@@ -147,7 +194,7 @@ export default function QuizGame() {
 
     return (
       <div className="container py-8 max-w-3xl page-enter">
-        <Card>
+        <UICard>
           <CardContent className="py-10 text-center space-y-6">
             <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
               <Trophy className="h-8 w-8 text-primary" />
@@ -179,11 +226,11 @@ export default function QuizGame() {
                 Jogar novamente
               </Button>
               <Button asChild>
-                <Link to={`/decks/${id}/play/hold`}>Modo Segura e Responde</Link>
+                <Link to={`/decks/${primaryId}/play/hold`}>Modo Segura e Responde</Link>
               </Button>
             </div>
           </CardContent>
-        </Card>
+        </UICard>
       </div>
     )
   }
@@ -193,8 +240,8 @@ export default function QuizGame() {
   return (
     <div className="container py-8 max-w-3xl page-enter">
       <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
-        <Link to={`/decks/${id}`}>
-          <ArrowLeft className="h-4 w-4" /> Voltar ao deck
+        <Link to={id ? `/decks/${primaryId}` : '/dashboard'}>
+          <ArrowLeft className="h-4 w-4" /> Voltar
         </Link>
       </Button>
 

@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { ArrowLeft, RotateCcw, CheckCircle2, XCircle, Trophy, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { decksApi } from '@/lib/api'
+import { decksApi, type Card } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card as UICard, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { toast } from 'sonner'
 
@@ -16,37 +16,29 @@ interface RoundResult {
 
 export default function HoldAndAnswerGame() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const { token } = useAuth()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['deck', id],
-    queryFn: () => decksApi.get(token!, id!),
-    enabled: !!token && !!id,
+  // Multi-deck: ?decks=id1,id2,id3
+  const multiIds = searchParams.get('decks')?.split(',').filter(Boolean) ?? []
+  const isMulti = multiIds.length > 0
+  const primaryId = isMulti ? multiIds[0] : (id ?? '')
+
+  const singleQuery = useQuery({
+    queryKey: ['deck', primaryId],
+    queryFn: () => decksApi.get(token!, primaryId),
+    enabled: !!token && !!primaryId && !isMulti,
   })
 
-  const saveMutation = useMutation({
-    mutationFn: (payload: { score: number; totalCards: number; correctCards: number }) =>
-      decksApi.saveSession(token!, id!, {
-        gameType: 'hold_and_answer',
-        ...payload,
-      }),
+  const multiQuery = useQuery({
+    queryKey: ['deck-multi', multiIds.join(',')],
+    queryFn: () => decksApi.getMulti(token!, multiIds),
+    enabled: !!token && isMulti,
   })
 
-  const [index, setIndex] = useState(0)
-  const [flipped, setFlipped] = useState(false)
-  const [results, setResults] = useState<RoundResult[]>([])
-  const [finished, setFinished] = useState(false)
+  const isLoading = isMulti ? multiQuery.isLoading : singleQuery.isLoading
 
-  if (isLoading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
-
-  const deck = data?.deck
-  const cards = data?.cards ?? []
+  const deck = isMulti ? multiQuery.data?.[0]?.deck : singleQuery.data?.deck
 
   if (!deck || cards.length === 0) {
     return <div className="container py-8">Deck sem cards para jogar.</div>
@@ -96,7 +88,7 @@ export default function HoldAndAnswerGame() {
           <Users className="h-4 w-4" />
           Modo Segura e Responde
         </div>
-        <h1 className="text-3xl font-bold">{deck.name}</h1>
+        <h1 className="text-3xl font-bold">{deckName}</h1>
       </div>
 
       {!finished ? (
@@ -113,7 +105,7 @@ export default function HoldAndAnswerGame() {
 
           <div className="card-flip-container h-[420px] mb-6">
             <div className={`card-flip-inner h-full ${flipped ? 'flipped' : ''}`}>
-              <Card className="card-face h-full flex flex-col cursor-pointer" onClick={() => setFlipped(true)}>
+              <UICard className="card-face h-full flex flex-col cursor-pointer" onClick={() => setFlipped(true)}>
                 <CardHeader>
                   <CardTitle className="text-sm text-muted-foreground uppercase tracking-wide">
                     Pergunta
@@ -122,9 +114,9 @@ export default function HoldAndAnswerGame() {
                 <CardContent className="flex-1 flex items-center justify-center text-center">
                   <p className="text-2xl font-semibold leading-relaxed">{current.question}</p>
                 </CardContent>
-              </Card>
+              </UICard>
 
-              <Card className="card-face card-face-back h-full flex flex-col cursor-pointer" onClick={() => setFlipped(false)}>
+              <UICard className="card-face card-face-back h-full flex flex-col cursor-pointer" onClick={() => setFlipped(false)}>
                 <CardHeader>
                   <CardTitle className="text-sm text-muted-foreground uppercase tracking-wide">
                     Resposta
@@ -157,7 +149,7 @@ export default function HoldAndAnswerGame() {
                     />
                   )}
                 </CardContent>
-              </Card>
+              </UICard>
             </div>
           </div>
 
@@ -186,7 +178,7 @@ export default function HoldAndAnswerGame() {
           </p>
         </>
       ) : (
-        <Card className="text-center py-8">
+        <UICard className="text-center py-8">
           <CardContent className="space-y-6">
             <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
               <Trophy className="h-8 w-8 text-primary" />
@@ -221,7 +213,7 @@ export default function HoldAndAnswerGame() {
               </Button>
             </div>
           </CardContent>
-        </Card>
+        </UICard>
       )}
     </div>
   )
