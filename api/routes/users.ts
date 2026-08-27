@@ -15,7 +15,7 @@ usersRouter.get('/me', requireAuth, async (c) => {
   const { sub } = c.get('user')
 
   const [user] = await db
-    .select({ id: users.id, email: users.email, role: users.role, themeColor: users.themeColor, createdAt: users.createdAt })
+    .select({ id: users.id, email: users.email, role: users.role, themeColor: users.themeColor, displayName: users.displayName, occupation: users.occupation, createdAt: users.createdAt })
     .from(users)
     .where(eq(users.id, sub!))
     .limit(1)
@@ -37,13 +37,15 @@ usersRouter.patch(
         .string()
         .regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida. Use formato hexadecimal: #rrggbb.')
         .optional(),
+      displayName: z.string().min(1).max(100).optional(),
+      occupation: z.string().max(100).optional(),
       currentPassword: z.string().min(1).optional(),
       newPassword: z.string().min(8).max(128).optional(),
     }),
   ),
   async (c) => {
     const { sub } = c.get('user')
-    const { themeColor, currentPassword, newPassword } = c.req.valid('json')
+    const { themeColor, displayName, occupation, currentPassword, newPassword } = c.req.valid('json')
 
     const [user] = await db.select().from(users).where(eq(users.id, sub!)).limit(1)
     if (!user) return c.json({ error: 'Usuário não encontrado.' }, 404)
@@ -54,6 +56,14 @@ usersRouter.patch(
 
     if (themeColor) {
       updates.themeColor = themeColor
+    }
+
+    if (displayName !== undefined) {
+      updates.displayName = displayName
+    }
+
+    if (occupation !== undefined) {
+      updates.occupation = occupation
     }
 
     if (newPassword) {
@@ -71,7 +81,7 @@ usersRouter.patch(
       .update(users)
       .set(updates)
       .where(eq(users.id, sub!))
-      .returning({ id: users.id, email: users.email, role: users.role, themeColor: users.themeColor })
+      .returning({ id: users.id, email: users.email, role: users.role, themeColor: users.themeColor, displayName: users.displayName, occupation: users.occupation })
 
     return c.json({ user: updated })
   },

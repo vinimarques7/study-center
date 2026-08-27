@@ -29,10 +29,12 @@ authRouter.post(
     z.object({
       email: z.string().email().max(255).toLowerCase(),
       password: z.string().min(8).max(128),
+      displayName: z.string().min(1).max(100),
+      occupation: z.string().max(100).optional(),
     }),
   ),
   async (c) => {
-    const { email, password } = c.req.valid('json')
+    const { email, password, displayName, occupation } = c.req.valid('json')
 
     const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email))
     if (existing.length > 0) {
@@ -43,8 +45,8 @@ authRouter.post(
 
     const [user] = await db
       .insert(users)
-      .values({ email, passwordHash, role: 'user' })
-      .returning({ id: users.id, email: users.email, role: users.role, themeColor: users.themeColor })
+      .values({ email, passwordHash, role: 'user', displayName, occupation })
+      .returning({ id: users.id, email: users.email, role: users.role, themeColor: users.themeColor, displayName: users.displayName, occupation: users.occupation })
 
     if (!user) return c.json({ error: 'Erro ao criar usuário.' }, 500)
 

@@ -17,7 +17,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, displayName: string, occupation?: string) => Promise<void>
   logout: () => Promise<void>
   updateUser: (updated: AppUser) => void
 }
@@ -70,8 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ user, token: accessToken, isLoading: false })
   }, [])
 
-  const register = useCallback(async (email: string, password: string) => {
-    const { accessToken, user } = await authApi.register(email, password)
+  const register = useCallback(async (email: string, password: string, displayName: string, occupation?: string) => {
+    const { accessToken, user } = await authApi.register(email, password, displayName, occupation)
     sessionStorage.setItem(TOKEN_KEY, accessToken)
     applyUserTheme(user.themeColor)
     setState({ user, token: accessToken, isLoading: false })

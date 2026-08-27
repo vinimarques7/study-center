@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { eq, and, sql } from 'drizzle-orm'
 import { db } from '../db/index'
-import { decks, cards } from '../db/schema'
+import { decks, cards, savedDecks, users } from '../db/schema'
 import { requireAuth } from '../middleware/auth'
 
 export const decksRouter = new Hono()
@@ -23,6 +23,7 @@ decksRouter.get('/', requireAuth, async (c) => {
       pinEmoji: decks.pinEmoji,
       pinLabel: decks.pinLabel,
       category: decks.category,
+      extraCategories: decks.extraCategories,
       deckDifficulty: decks.deckDifficulty,
       createdAt: decks.createdAt,
       cardCount: sql<number>`count(${cards.id})::int`,
@@ -32,6 +33,39 @@ decksRouter.get('/', requireAuth, async (c) => {
     .where(eq(decks.ownerId, sub!))
     .groupBy(decks.id)
     .orderBy(decks.createdAt)
+
+  return c.json({ decks: rows })
+})
+
+// ─── GET /api/decks/saved ───────────────────────────────────────────────────────
+
+decksRouter.get('/saved', requireAuth, async (c) => {
+  const { sub } = c.get('user')
+
+  const rows = await db
+    .select({
+      id: decks.id,
+      name: decks.name,
+      description: decks.description,
+      ownerId: decks.ownerId,
+      isPublic: decks.isPublic,
+      pinEmoji: decks.pinEmoji,
+      pinLabel: decks.pinLabel,
+      category: decks.category,
+      extraCategories: decks.extraCategories,
+      deckDifficulty: decks.deckDifficulty,
+      createdAt: decks.createdAt,
+      cardCount: sql<number>`count(distinct ${cards.id})::int`,
+      creatorName: users.displayName,
+      creatorEmail: users.email,
+      savedAt: savedDecks.savedAt,
+    })
+    .from(savedDecks)
+    .innerJoin(decks, eq(savedDecks.deckId, decks.id))
+    .innerJoin(users, eq(decks.ownerId, users.id))
+    .leftJoin(cards, eq(cards.deckId, decks.id))
+    .where(eq(savedDecks.userId, sub!))
+    .groupBy(decks.id, users.displayName, users.email, savedDecks.savedAt)
 
   return c.json({ decks: rows })
 })
@@ -49,14 +83,18 @@ decksRouter.get('/public', async (c) => {
       pinEmoji: decks.pinEmoji,
       pinLabel: decks.pinLabel,
       category: decks.category,
+      extraCategories: decks.extraCategories,
       deckDifficulty: decks.deckDifficulty,
       createdAt: decks.createdAt,
-      cardCount: sql<number>`count(${cards.id})::int`,
+      cardCount: sql<number>`count(distinct ${cards.id})::int`,
+      creatorName: users.displayName,
+      creatorEmail: users.email,
     })
     .from(decks)
+    .innerJoin(users, eq(decks.ownerId, users.id))
     .leftJoin(cards, eq(cards.deckId, decks.id))
     .where(eq(decks.isPublic, true))
-    .groupBy(decks.id)
+    .groupBy(decks.id, users.displayName, users.email)
     .orderBy(decks.createdAt)
 
   return c.json({ decks: rows })
@@ -95,16 +133,17 @@ decksRouter.post(
       description: z.string().max(500).optional(),
       isPublic: z.boolean().optional().default(false),
       category: z.string().max(60).nullable().optional(),
+      extraCategories: z.array(z.string().max(60)).optional(),
       deckDifficulty: z.enum(['easy', 'medium', 'hard']).optional(),
     }),
   ),
   async (c) => {
     const { sub } = c.get('user')
-    const { name, description, isPublic } = c.req.valid('json')
+    const { name, description, isPublic, category, extraCategories, deckDifficulty } = c.req.valid('json')
 
     const [deck] = await db
       .insert(decks)
-      .values({ name, description, ownerId: sub!, isPublic })
+      .values({ name, description, ownerId: sub!, isPublic, category, extraCategories, deckDifficulty })
       .returning()
 
     return c.json({ deck }, 201)
@@ -125,6 +164,7 @@ decksRouter.patch(
       pinEmoji: z.string().max(10).nullable().optional(),
       pinLabel: z.string().max(60).nullable().optional(),
       category: z.string().max(60).nullable().optional(),
+      extraCategories: z.array(z.string().max(60)).nullable().optional(),
       deckDifficulty: z.enum(['easy', 'medium', 'hard']).optional(),
     }),
   ),
@@ -166,6 +206,42 @@ decksRouter.delete('/:id', requireAuth, async (c) => {
   await db.delete(decks).where(eq(decks.id, id))
 
   return c.json({ message: 'Deck excluído com sucesso.' })
+})
+
+// ─── POST /api/decks/:id/save ─────────────────────────────────────────────────
+
+decksRouter.post('/:id/save', requireAuth, async (c) => {
+  const { id } = c.req.param()
+  const { sub } = c.get('user')
+
+  const [deck] = await db.select().from(decks).where(eq(decks.id, id)).limit(1)
+  if (!deck) return c.json({ error: 'Deck não encontrado.' }, 404)
+  if (!deck.isPublic && deck.ownerId !== sub) {
+    return c.json({ error: 'Deck não é público.' }, 403)
+  }
+  if (deck.ownerId === sub) {
+    return c.json({ error: 'Não é possível salvar seu próprio deck.' }, 400)
+  }
+
+  await db
+    .insert(savedDecks)
+    .values({ userId: sub!, deckId: id })
+    .onConflictDoNothing()
+
+  return c.json({ saved: true })
+})
+
+// ─── DELETE /api/decks/:id/save ───────────────────────────────────────────────
+
+decksRouter.delete('/:id/save', requireAuth, async (c) => {
+  const { id } = c.req.param()
+  const { sub } = c.get('user')
+
+  await db
+    .delete(savedDecks)
+    .where(and(eq(savedDecks.userId, sub!), eq(savedDecks.deckId, id)))
+
+  return c.json({ saved: false })
 })
 
 // ─── GET /api/decks/:id/quiz — generate quiz questions ───────────────────────

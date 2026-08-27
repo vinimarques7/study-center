@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, BookOpen, Play, Edit2, Trash2, Globe, Lock, MoreVertical, Tag, Users, RotateCcw } from 'lucide-react'
+import { Plus, BookOpen, Play, Edit2, Trash2, Globe, Lock, MoreVertical, Tag, Users, RotateCcw, Bookmark, BookmarkX } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
-import { decksApi, type DeckWithCount } from '@/lib/api'
+import { decksApi, savedDecksApi, type DeckWithCount } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -200,7 +200,10 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(false)
   const [category, setCategory] = useState('')
+  const [extraCategories, setExtraCategories] = useState<string[]>([])
   const [deckDifficulty, setDeckDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
+  const [extraOpen, setExtraOpen] = useState(false)
+  const [extraSearch, setExtraSearch] = useState('')
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -209,6 +212,7 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
         description,
         isPublic,
         category: category || null,
+        extraCategories: extraCategories.length ? extraCategories : undefined,
         deckDifficulty,
       }),
     onSuccess: () => {
@@ -217,11 +221,22 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
       setName('')
       setDescription('')
       setCategory('')
+      setExtraCategories([])
       setDeckDifficulty('medium')
       onCreated()
     },
     onError: () => toast.error('Erro ao criar deck.'),
   })
+
+  function toggleExtra(cat: string) {
+    setExtraCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
+    )
+  }
+
+  const availableExtra = DECK_CATEGORIES.filter(
+    (c) => c !== category && c.toLowerCase().includes(extraSearch.toLowerCase()),
+  )
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -231,7 +246,7 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
           Novo Deck
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Criar novo deck</DialogTitle>
           <DialogDescription>Organize seus cards por tema ou assunto.</DialogDescription>
@@ -264,7 +279,7 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Categoria</Label>
+              <Label>Categoria principal</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecionar..." />
@@ -290,6 +305,63 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
               </Select>
             </div>
           </div>
+
+          {/* Extra categories */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setExtraOpen((v) => !v)}
+              className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+            >
+              {extraOpen ? '▾' : '▸'} Categorias adicionais
+              {extraCategories.length > 0 && (
+                <span className="rounded-full bg-primary/10 text-primary text-xs px-1.5">{extraCategories.length}</span>
+              )}
+            </button>
+            {extraOpen && (
+              <div className="rounded-lg border p-3 space-y-2">
+                <Input
+                  placeholder="Buscar categoria..."
+                  value={extraSearch}
+                  onChange={(e) => setExtraSearch(e.target.value)}
+                  className="h-8 text-sm"
+                />
+                <div className="max-h-36 overflow-y-auto space-y-0.5">
+                  {availableExtra.map((cat) => (
+                    <label
+                      key={cat}
+                      className={`flex items-center gap-2 rounded px-2 py-1 cursor-pointer text-sm transition-colors ${
+                        extraCategories.includes(cat) ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={extraCategories.includes(cat)}
+                        onChange={() => toggleExtra(cat)}
+                        className="accent-primary"
+                      />
+                      {cat}
+                    </label>
+                  ))}
+                </div>
+                {extraCategories.length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1 border-t">
+                    {extraCategories.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => toggleExtra(c)}
+                        className="flex items-center gap-1 rounded-full bg-primary/10 text-primary text-xs px-2 py-0.5 hover:bg-primary/20"
+                      >
+                        {c} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -476,6 +548,9 @@ function DeckCard({
       <CardContent className="pb-3">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="secondary">{pluralize(deck.cardCount, 'card', 'cards')}</Badge>
+          {deck.category && (
+            <Badge variant="outline" className="text-xs gap-1">{deck.category}</Badge>
+          )}
           {deck.isPublic ? (
             <Badge variant="outline" className="gap-1"><Globe className="h-3 w-3" /> Público</Badge>
           ) : (
@@ -531,6 +606,22 @@ export default function Dashboard() {
 
   const rawDecks = data?.decks ?? []
   const { ordered: decks, dragHandlers, resetOrder } = useLocalOrder(rawDecks, 'sc_deck_order')
+
+  const { data: savedData } = useQuery({
+    queryKey: ['saved-decks'],
+    queryFn: () => savedDecksApi.list(token!),
+    enabled: !!token,
+  })
+
+  const unsaveMutation = useMutation({
+    mutationFn: (id: string) => savedDecksApi.unsave(token!, id),
+    onSuccess: () => {
+      toast.success('Deck removido dos salvos.')
+      qc.invalidateQueries({ queryKey: ['saved-decks'] })
+    },
+  })
+
+  const savedDecks = savedData?.decks ?? []
 
   return (
     <div className="container py-8 page-enter">
@@ -596,6 +687,61 @@ export default function Dashboard() {
           primaryDeckId={launchDeckId}
           allDecks={rawDecks}
         />
+      )}
+
+      {/* ─── Saved Decks ─────────────────────────────────────────────── */}
+      {savedDecks.length > 0 && (
+        <div className="mt-12">
+          <div className="flex items-center gap-2 mb-5">
+            <Bookmark className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Decks salvos</h2>
+            <span className="text-sm text-muted-foreground">({savedDecks.length})</span>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {savedDecks.map((deck) => {
+              const creator = deck.creatorName ?? deck.creatorEmail?.split('@')[0] ?? 'Desconhecido'
+              return (
+                <Card key={deck.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <BookOpen className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                        <CardTitle className="text-base truncate">{deck.name}</CardTitle>
+                      </div>
+                      <button
+                        title="Remover dos salvos"
+                        onClick={() => unsaveMutation.mutate(deck.id)}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                      >
+                        <BookmarkX className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">por {creator}</p>
+                    {deck.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{deck.description}</p>
+                    )}
+                  </CardHeader>
+                  <CardContent className="pb-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="secondary">{pluralize(deck.cardCount, 'card', 'cards')}</Badge>
+                      {deck.category && <Badge variant="outline" className="text-xs">{deck.category}</Badge>}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="pt-0 gap-2">
+                    <Button size="sm" variant="outline" asChild className="flex-1">
+                      <Link to={`/decks/${deck.id}`}>Ver cards</Link>
+                    </Button>
+                    {deck.cardCount >= 2 && (
+                      <Button size="sm" className="flex-1" onClick={() => setLaunchDeckId(deck.id)}>
+                        <Play className="h-3.5 w-3.5" /> Jogar
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
       )}
     </div>
   )

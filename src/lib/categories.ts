@@ -1,33 +1,27 @@
-export const DECK_CATEGORIES = [
-  // Ciências exatas
-  'Matemática', 'Física', 'Química', 'Estatística', 'Cálculo',
-  // Ciências biológicas e saúde
-  'Biologia', 'Anatomia', 'Fisiologia', 'Medicina', 'Enfermagem',
-  'Farmácia', 'Nutrição', 'Odontologia', 'Veterinária',
-  // Psicologia e ciências humanas
-  'Psicologia', 'Filosofia', 'Sociologia', 'Antropologia', 'História',
-  'Geografia', 'Ciências Políticas', 'Direito', 'Serviço Social',
-  // Linguagens
-  'Português', 'Literatura', 'Inglês', 'Espanhol', 'Francês',
-  'Alemão', 'Italiano', 'Mandarim', 'Libras',
-  // Tecnologia
-  'Programação', 'Computação', 'Redes', 'Banco de Dados',
-  'Inteligência Artificial', 'Engenharia de Software',
-  'DevOps', 'Segurança da Informação', 'UX / Design',
-  // Engenharias
-  'Engenharia Civil', 'Engenharia Elétrica', 'Engenharia Mecânica',
-  'Arquitetura', 'Engenharia de Produção',
-  // Negócios
-  'Administração', 'Marketing', 'Economia', 'Contabilidade',
-  'Finanças', 'Empreendedorismo', 'Gestão de Projetos',
-  // Artes e cultura
-  'Artes Visuais', 'Música', 'Cinema', 'Teatro', 'Fotografia',
-  // Outros
-  'Educação Física', 'Esportes', 'Culinária', 'Religião',
-  'Cultura Geral', 'Concursos Públicos', 'Vestibular', 'Outro',
-] as const
+const RAW_CATEGORIES = [
+  'Administração', 'Anatomia', 'Antropologia', 'Arquitetura',
+  'Artes Visuais', 'Biologia', 'Cálculo', 'Cinema',
+  'Ciências Políticas', 'Computação', 'Concursos Públicos', 'Contabilidade',
+  'Culinária', 'Cultura Geral', 'Banco de Dados', 'DevOps',
+  'Direito', 'Economia', 'Educação Física', 'Empreendedorismo',
+  'Enfermagem', 'Engenharia Civil', 'Engenharia de Produção',
+  'Engenharia de Software', 'Engenharia Elétrica', 'Engenharia Mecânica',
+  'Esportes', 'Estatística', 'Farmácia', 'Filosofia', 'Física',
+  'Finanças', 'Fotografia', 'Francês', 'Gestão de Projetos',
+  'Geografia', 'Alemão', 'História', 'Inglês', 'Inteligência Artificial',
+  'Italiano', 'Libras', 'Literatura', 'Mandarim', 'Marketing',
+  'Matemática', 'Medicina', 'Música', 'Nutrição', 'Odontologia',
+  'Outro', 'Português', 'Programação', 'Psicologia', 'Química',
+  'Redes', 'Religião', 'Segurança da Informação', 'Serviço Social',
+  'Sociologia', 'Teatro', 'UX / Design', 'Vestibular', 'Veterinária',
+  'Espanhol',
+]
 
-export type DeckCategory = (typeof DECK_CATEGORIES)[number]
+export const DECK_CATEGORIES = [...RAW_CATEGORIES].sort((a, b) =>
+  a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }),
+) as string[]
+
+export type DeckCategory = string
 
 export const DIFFICULTY_LABEL: Record<string, string> = {
   easy: '🟢 Fácil',

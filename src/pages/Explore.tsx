@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Search, BookOpen, Filter, X } from 'lucide-react'
-import { decksApi, type DeckWithCount } from '@/lib/api'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Search, BookOpen, Filter, X, Bookmark, BookmarkCheck } from 'lucide-react'
+import { decksApi, savedDecksApi, type DeckWithCount } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -65,15 +66,42 @@ function CategoryFilter({
   )
 }
 
-function PublicDeckCard({ deck }: { deck: DeckWithCount }) {
+function PublicDeckCard({ deck, isSaved, onSave, onUnsave, saving }: {
+  deck: DeckWithCount
+  isSaved: boolean
+  onSave: () => void
+  onUnsave: () => void
+  saving: boolean
+}) {
   const { user } = useAuth()
+  const creator = deck.creatorName ?? deck.creatorEmail?.split('@')[0] ?? null
+  const isOwn = user?.id === deck.ownerId
 
   return (
     <Card className="hover:shadow-md transition-shadow flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex items-start gap-2">
           <BookOpen className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-          <CardTitle className="text-base leading-snug">{deck.name}</CardTitle>
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base leading-snug">{deck.name}</CardTitle>
+            {creator && (
+              <p className="text-xs text-muted-foreground mt-0.5">por {creator}</p>
+            )}
+          </div>
+          {user && !isOwn && (
+            <button
+              onClick={isSaved ? onUnsave : onSave}
+              disabled={saving}
+              title={isSaved ? 'Remover dos salvos' : 'Salvar deck'}
+              className="text-muted-foreground hover:text-primary transition-colors p-1 shrink-0"
+            >
+              {isSaved ? (
+                <BookmarkCheck className="h-4 w-4 text-primary" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
+              )}
+            </button>
+          )}
         </div>
         {deck.description && (
           <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{deck.description}</p>
@@ -108,6 +136,8 @@ function PublicDeckCard({ deck }: { deck: DeckWithCount }) {
 }
 
 export default function Explore() {
+  const { user, token } = useAuth()
+  const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const [selectedDifficulties, setSelectedDifficulties] = useState<Set<string>>(new Set())
@@ -117,6 +147,30 @@ export default function Explore() {
     queryKey: ['public-decks'],
     queryFn: () => decksApi.listPublic(),
     staleTime: 1000 * 60 * 5,
+  })
+
+  const { data: savedData } = useQuery({
+    queryKey: ['saved-decks'],
+    queryFn: () => savedDecksApi.list(token!),
+    enabled: !!token,
+  })
+  const savedIds = new Set((savedData?.decks ?? []).map((d) => d.id))
+
+  const saveMutation = useMutation({
+    mutationFn: (id: string) => savedDecksApi.save(token!, id),
+    onSuccess: () => {
+      toast.success('Deck salvo no seu dashboard!')
+      qc.invalidateQueries({ queryKey: ['saved-decks'] })
+    },
+    onError: () => toast.error('Não foi possível salvar o deck.'),
+  })
+
+  const unsaveMutation = useMutation({
+    mutationFn: (id: string) => savedDecksApi.unsave(token!, id),
+    onSuccess: () => {
+      toast.success('Deck removido dos salvos.')
+      qc.invalidateQueries({ queryKey: ['saved-decks'] })
+    },
   })
 
   function toggleCategory(cat: string) {
@@ -296,7 +350,14 @@ export default function Explore() {
               </p>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filtered.map((deck) => (
-                  <PublicDeckCard key={deck.id} deck={deck} />
+                  <PublicDeckCard
+                    key={deck.id}
+                    deck={deck}
+                    isSaved={savedIds.has(deck.id)}
+                    onSave={() => saveMutation.mutate(deck.id)}
+                    onUnsave={() => unsaveMutation.mutate(deck.id)}
+                    saving={saveMutation.isPending || unsaveMutation.isPending}
+                  />
                 ))}
               </div>
             </>

@@ -38,10 +38,10 @@ export class ApiError extends Error {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  register: (email: string, password: string) =>
+  register: (email: string, password: string, displayName: string, occupation?: string) =>
     request<{ accessToken: string; user: AppUser }>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, displayName, occupation }),
     }),
 
   login: (email: string, password: string) =>
@@ -66,7 +66,7 @@ export const authApi = {
 export const usersApi = {
   me: (token: string) => request<{ user: AppUser }>('/users/me', { token }),
 
-  updateMe: (token: string, body: { themeColor?: string; currentPassword?: string; newPassword?: string }) =>
+  updateMe: (token: string, body: { themeColor?: string; displayName?: string; occupation?: string; currentPassword?: string; newPassword?: string }) =>
     request<{ user: AppUser }>('/users/me', { method: 'PATCH', body: JSON.stringify(body), token }),
 
   list: (token: string) => request<{ users: AppUser[] }>('/users', { token }),
@@ -91,10 +91,10 @@ export const decksApi = {
 
   getMulti: (token: string, ids: string[]) =>
     Promise.all(ids.map((id) => request<{ deck: Deck; cards: Card[] }>(`/decks/${id}`, { token }))),
-  create: (token: string, body: { name: string; description?: string; isPublic?: boolean; category?: string | null; deckDifficulty?: string }) =>
+  create: (token: string, body: { name: string; description?: string; isPublic?: boolean; category?: string | null; extraCategories?: string[]; deckDifficulty?: string }) =>
     request<{ deck: Deck }>('/decks', { method: 'POST', body: JSON.stringify(body), token }),
 
-  update: (token: string, id: string, body: { name?: string; description?: string; isPublic?: boolean; pinEmoji?: string | null; pinLabel?: string | null; category?: string | null; deckDifficulty?: string }) =>
+  update: (token: string, id: string, body: { name?: string; description?: string; isPublic?: boolean; pinEmoji?: string | null; pinLabel?: string | null; category?: string | null; extraCategories?: string[] | null; deckDifficulty?: string }) =>
     request<{ deck: Deck }>(`/decks/${id}`, { method: 'PATCH', body: JSON.stringify(body), token }),
 
   delete: (token: string, id: string) =>
@@ -136,6 +136,8 @@ export interface AppUser {
   email: string
   role: 'user' | 'admin'
   themeColor: string
+  displayName: string | null
+  occupation: string | null
   createdAt?: string
 }
 
@@ -148,7 +150,11 @@ export interface Deck {
   pinEmoji: string | null
   pinLabel: string | null
   category: string | null
+  extraCategories: string[] | null
   deckDifficulty: 'easy' | 'medium' | 'hard'
+  creatorName?: string | null
+  creatorEmail?: string | null
+  savedAt?: string
   createdAt: string
   updatedAt: string
 }
@@ -206,4 +212,17 @@ export interface GameSessionPayload {
   score: number
   totalCards: number
   correctCards: number
+}
+
+// ─── Saved Decks ──────────────────────────────────────────────────────────────
+
+export const savedDecksApi = {
+  list: (token: string) =>
+    request<{ decks: DeckWithCount[] }>('/decks/saved', { token }),
+
+  save: (token: string, deckId: string) =>
+    request<{ saved: boolean }>(`/decks/${deckId}/save`, { method: 'POST', token }),
+
+  unsave: (token: string, deckId: string) =>
+    request<{ saved: boolean }>(`/decks/${deckId}/save`, { method: 'DELETE', token }),
 }
