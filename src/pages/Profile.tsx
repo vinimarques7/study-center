@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Palette, KeyRound, UserCircle, Image as ImageIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { usersApi } from '@/lib/api'
+import { usersApi, type SiteSettings } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   applyProfileDesignOverride,
+  applySiteAppearance,
   getProfileDesignPrefs,
   saveProfileDesignPrefs,
   type ProfileDesignPrefs,
@@ -40,6 +41,7 @@ const BG_PRESETS = [
 
 export default function Profile() {
   const { user, token, updateUser } = useAuth()
+  const qc = useQueryClient()
   const [themeColor, setThemeColor] = useState(user?.themeColor ?? '#6366f1')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -77,7 +79,13 @@ export default function Profile() {
   function persistDesign(next: ProfileDesignPrefs) {
     setDesignPrefs(next)
     saveProfileDesignPrefs(next)
-    applyProfileDesignOverride()
+    if (next.mode === 'image') {
+      applyProfileDesignOverride()
+    } else {
+      // Restore global admin appearance so profile override doesn't linger
+      const cached = qc.getQueryData<{ settings: SiteSettings }>(['site-settings'])
+      applySiteAppearance(cached?.settings ?? {})
+    }
     toast.success('Design atualizado para este perfil/dispositivo.')
   }
 

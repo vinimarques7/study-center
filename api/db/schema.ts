@@ -60,6 +60,8 @@ export const decks = pgTable('decks', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   isPublic: boolean('is_public').notNull().default(false),
+  pinEmoji: varchar('pin_emoji', { length: 10 }),
+  pinLabel: varchar('pin_label', { length: 60 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })

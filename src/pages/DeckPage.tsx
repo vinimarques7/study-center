@@ -40,11 +40,89 @@ import { pluralize } from '@/lib/utils'
 
 const DIFFICULTY_LABEL = { easy: '🟢 Fácil', medium: '🟡 Médio', hard: '🔴 Difícil' }
 
+// ─── Image drop / URL field ───────────────────────────────────────────────────
+function ImageDropField({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (url: string) => void
+}) {
+  const [dragging, setDragging] = useState(false)
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      if (ev.target?.result) onChange(ev.target.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      if (ev.target?.result) onChange(ev.target.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label>Imagem <span className="text-muted-foreground text-xs">(opcional)</span></Label>
+
+      <div
+        onDrop={handleDrop}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        className={`relative rounded-lg border-2 border-dashed transition-colors ${
+          dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/40'
+        } p-4 text-center`}
+      >
+        {value ? (
+          <div className="space-y-2">
+            <img src={value} alt="Preview" className="mx-auto max-h-32 rounded-md object-contain" />
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              className="text-xs text-destructive hover:underline"
+            >
+              Remover imagem
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <ImageIcon className="mx-auto h-8 w-8 opacity-40" />
+            <p>Arraste uma imagem aqui</p>
+            <label className="cursor-pointer text-primary hover:underline">
+              ou clique para escolher arquivo
+              <input type="file" accept="image/*" className="sr-only" onChange={handleFileInput} />
+            </label>
+          </div>
+        )}
+      </div>
+
+      <Input
+        placeholder="Ou cole uma URL de imagem (https://...)"
+        value={value.startsWith('data:') ? '' : value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  )
+}
+
 interface CardFormData {
   question: string
   answer: string
   explanation: string
   analogy: string
+  imageUrl: string
   difficulty: 'easy' | 'medium' | 'hard'
 }
 
@@ -67,14 +145,26 @@ function CardFormDialog({
     answer: card?.answer ?? '',
     explanation: card?.explanation ?? '',
     analogy: card?.analogy ?? '',
+    imageUrl: card?.imageUrl ?? '',
     difficulty: card?.difficulty ?? 'medium',
   })
 
   const mutation = useMutation({
     mutationFn: () =>
       card
-        ? cardsApi.update(token!, card.id, { ...form, explanation: form.explanation || undefined, analogy: form.analogy || undefined })
-        : cardsApi.create(token!, { deckId, ...form, explanation: form.explanation || undefined, analogy: form.analogy || undefined }),
+        ? cardsApi.update(token!, card.id, {
+            ...form,
+            explanation: form.explanation || undefined,
+            analogy: form.analogy || undefined,
+            imageUrl: form.imageUrl || null,
+          })
+        : cardsApi.create(token!, {
+            deckId,
+            ...form,
+            explanation: form.explanation || undefined,
+            analogy: form.analogy || undefined,
+            imageUrl: form.imageUrl || null,
+          }),
     onSuccess: () => {
       toast.success(card ? 'Card atualizado!' : 'Card criado!')
       onOpenChange(false)
@@ -139,6 +229,7 @@ function CardFormDialog({
               onChange={(e) => set('analogy', e.target.value)}
             />
           </div>
+          <ImageDropField value={form.imageUrl} onChange={(url) => set('imageUrl', url)} />
           <div className="space-y-2">
             <Label>Dificuldade</Label>
             <Select
@@ -169,9 +260,19 @@ function CardFormDialog({
   )
 }
 
-function FlashCard({ card, onEdit, onDelete }: { card: Card; onEdit: () => void; onDelete: () => void }) {
-  const [expanded, setExpanded] = useState(false)
-
+function FlashCard({
+  card,
+  expanded,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  card: Card
+  expanded: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
   return (
     <UICard className="group">
       <CardHeader className="pb-2">
@@ -203,7 +304,7 @@ function FlashCard({ card, onEdit, onDelete }: { card: Card; onEdit: () => void;
       <CardContent className="pt-0">
         <button
           className="w-full text-left"
-          onClick={() => setExpanded((v) => !v)}
+          onClick={onToggle}
         >
           <div className="flex items-center gap-2 text-sm text-primary hover:text-primary/80">
             {expanded ? (
@@ -257,6 +358,7 @@ export default function DeckPage() {
   const qc = useQueryClient()
   const [formOpen, setFormOpen] = useState(false)
   const [editCard, setEditCard] = useState<Card | undefined>()
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['deck', id],
@@ -369,6 +471,8 @@ export default function DeckPage() {
             <FlashCard
               key={card.id}
               card={card}
+              expanded={expandedCardId === card.id}
+              onToggle={() => setExpandedCardId((prev) => (prev === card.id ? null : card.id))}
               onEdit={() => handleEdit(card)}
               onDelete={() => handleDelete(card.id)}
             />

@@ -92,7 +92,7 @@ export const decksApi = {
   create: (token: string, body: { name: string; description?: string; isPublic?: boolean }) =>
     request<{ deck: Deck }>('/decks', { method: 'POST', body: JSON.stringify(body), token }),
 
-  update: (token: string, id: string, body: { name?: string; description?: string; isPublic?: boolean }) =>
+  update: (token: string, id: string, body: { name?: string; description?: string; isPublic?: boolean; pinEmoji?: string | null; pinLabel?: string | null }) =>
     request<{ deck: Deck }>(`/decks/${id}`, { method: 'PATCH', body: JSON.stringify(body), token }),
 
   delete: (token: string, id: string) =>
@@ -143,6 +143,8 @@ export interface Deck {
   description: string | null
   ownerId: string
   isPublic: boolean
+  pinEmoji: string | null
+  pinLabel: string | null
   createdAt: string
   updatedAt: string
 }
@@ -172,6 +174,7 @@ export type NewCard = {
   answer: string
   explanation?: string
   analogy?: string
+  imageUrl?: string | null
   difficulty?: 'easy' | 'medium' | 'hard'
 }
 

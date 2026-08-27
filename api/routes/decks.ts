@@ -112,6 +112,8 @@ decksRouter.patch(
       name: z.string().min(1).max(100).optional(),
       description: z.string().max(500).optional(),
       isPublic: z.boolean().optional(),
+      pinEmoji: z.string().max(10).nullable().optional(),
+      pinLabel: z.string().max(60).nullable().optional(),
     }),
   ),
   async (c) => {

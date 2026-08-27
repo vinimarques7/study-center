@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, BookOpen, Play, Edit2, Trash2, Globe, Lock, MoreVertical } from 'lucide-react'
+import { Plus, BookOpen, Play, Edit2, Trash2, Globe, Lock, MoreVertical, Tag } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { decksApi, type DeckWithCount } from '@/lib/api'
@@ -21,6 +21,19 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { pluralize } from '@/lib/utils'
+
+const DECK_PINS = [
+  { emoji: '🟢', label: 'Tranquilo' },
+  { emoji: '🟡', label: 'Revisão' },
+  { emoji: '🔴', label: 'Urgente' },
+  { emoji: '⭐', label: 'Favorito' },
+  { emoji: '🧠', label: 'Difícil' },
+  { emoji: '🔥', label: 'Foco' },
+  { emoji: '📌', label: 'Fixado' },
+  { emoji: '✅', label: 'Concluído' },
+  { emoji: '😤', label: 'Preciso estudar' },
+  { emoji: '😌', label: 'Dominei' },
+] as const
 
 function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
   const { token } = useAuth()
@@ -107,7 +120,39 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
 }
 
 function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: string) => void }) {
+  const { token } = useAuth()
+  const qc = useQueryClient()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [pinOpen, setPinOpen] = useState(false)
+  const [customEmoji, setCustomEmoji] = useState('')
+  const [customLabel, setCustomLabel] = useState('')
+
+  const pinMutation = useMutation({
+    mutationFn: (args: { pinEmoji: string | null; pinLabel: string | null }) =>
+      decksApi.update(token!, deck.id, args),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['decks'] })
+      setPinOpen(false)
+    },
+    onError: () => toast.error('Erro ao salvar pin.'),
+  })
+
+  function applyPreset(emoji: string, label: string) {
+    pinMutation.mutate({ pinEmoji: emoji, pinLabel: label })
+  }
+
+  function applyCustom() {
+    const emoji = customEmoji.trim()
+    const label = customLabel.trim()
+    if (!emoji) return toast.error('Informe um emoji.')
+    pinMutation.mutate({ pinEmoji: emoji, pinLabel: label || emoji })
+    setCustomEmoji('')
+    setCustomLabel('')
+  }
+
+  function clearPin() {
+    pinMutation.mutate({ pinEmoji: null, pinLabel: null })
+  }
 
   return (
     <Card className="group hover:shadow-md transition-shadow">
@@ -117,33 +162,90 @@ function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: stri
             <BookOpen className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <CardTitle className="text-base truncate">{deck.name}</CardTitle>
           </div>
-          <div className="relative">
-            <button
-              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-muted transition-opacity"
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              <MoreVertical className="h-4 w-4 text-muted-foreground" />
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-6 z-10 w-40 rounded-md border bg-popover shadow-lg py-1">
-                <Link
-                  to={`/decks/${deck.id}`}
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <Edit2 className="h-3.5 w-3.5" /> Editar
-                </Link>
-                <button
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent text-destructive"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    onDelete(deck.id)
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Excluir
-                </button>
-              </div>
-            )}
+          <div className="flex items-center gap-1">
+            {/* Pin button */}
+            <div className="relative">
+              <button
+                title="Definir pin"
+                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-muted transition-opacity"
+                onClick={() => setPinOpen((v) => !v)}
+              >
+                <Tag className="h-4 w-4 text-muted-foreground" />
+              </button>
+              {pinOpen && (
+                <div className="absolute right-0 top-7 z-20 w-64 rounded-xl border bg-popover shadow-xl p-3 space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Escolher pin</p>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {DECK_PINS.map((p) => (
+                      <button
+                        key={p.emoji}
+                        title={p.label}
+                        onClick={() => applyPreset(p.emoji, p.label)}
+                        className={`text-xl rounded-lg p-1.5 hover:bg-muted transition-colors ${deck.pinEmoji === p.emoji ? 'bg-primary/15 ring-1 ring-primary' : ''}`}
+                      >
+                        {p.emoji}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex gap-1">
+                      <Input
+                        placeholder="Emoji"
+                        value={customEmoji}
+                        onChange={(e) => setCustomEmoji(e.target.value)}
+                        className="w-16 text-center px-1"
+                        maxLength={4}
+                      />
+                      <Input
+                        placeholder="Nome do pin"
+                        value={customLabel}
+                        onChange={(e) => setCustomLabel(e.target.value)}
+                        className="flex-1"
+                        maxLength={30}
+                      />
+                    </div>
+                    <Button size="sm" className="w-full" variant="secondary" onClick={applyCustom}>
+                      Aplicar personalizado
+                    </Button>
+                  </div>
+                  {deck.pinEmoji && (
+                    <Button size="sm" variant="ghost" className="w-full text-destructive" onClick={clearPin}>
+                      Remover pin
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Options menu */}
+            <div className="relative">
+              <button
+                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-muted transition-opacity"
+                onClick={() => setMenuOpen((v) => !v)}
+              >
+                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-6 z-10 w-40 rounded-md border bg-popover shadow-lg py-1">
+                  <Link
+                    to={`/decks/${deck.id}`}
+                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Edit2 className="h-3.5 w-3.5" /> Editar
+                  </Link>
+                  <button
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent text-destructive"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      onDelete(deck.id)
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Excluir
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         {deck.description && (
@@ -152,7 +254,7 @@ function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: stri
       </CardHeader>
 
       <CardContent className="pb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="secondary">
             {pluralize(deck.cardCount, 'card', 'cards')}
           </Badge>
@@ -163,6 +265,14 @@ function DeckCard({ deck, onDelete }: { deck: DeckWithCount; onDelete: (id: stri
           ) : (
             <Badge variant="outline" className="gap-1">
               <Lock className="h-3 w-3" /> Privado
+            </Badge>
+          )}
+          {deck.pinEmoji && (
+            <Badge
+              variant="secondary"
+              className="gap-1 bg-primary/10 text-primary border-primary/20 cursor-default"
+            >
+              {deck.pinEmoji} {deck.pinLabel}
             </Badge>
           )}
         </div>

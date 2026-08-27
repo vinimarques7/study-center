@@ -132,14 +132,29 @@ export default function HoldAndAnswerGame() {
                 </CardHeader>
                 <CardContent className="flex-1 space-y-4 overflow-y-auto">
                   <p className="text-xl font-semibold">{current.answer}</p>
+
                   {current.explanation && (
-                    <p className="text-sm text-muted-foreground">{current.explanation}</p>
+                    <div className="rounded-xl border-2 border-primary/30 bg-primary/8 p-4 space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+                        🎯 Guia do avaliador
+                      </p>
+                      <p className="text-sm leading-relaxed">{current.explanation}</p>
+                    </div>
                   )}
+
                   {current.analogy && (
                     <div className="p-3 rounded-lg bg-muted border-l-2 border-primary/40">
                       <p className="text-xs font-medium text-primary mb-1">Analogia</p>
                       <p className="text-sm italic">{current.analogy}</p>
                     </div>
+                  )}
+
+                  {current.imageUrl && (
+                    <img
+                      src={current.imageUrl}
+                      alt="Card"
+                      className="rounded-lg max-h-32 object-contain"
+                    />
                   )}
                 </CardContent>
               </Card>
