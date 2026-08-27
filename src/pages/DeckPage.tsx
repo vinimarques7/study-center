@@ -469,7 +469,7 @@ export default function DeckPage() {
         </div>
       </div>
 
-      {/* Cards grid */}
+      {/* Cards grid — click outside any card collapses the open one */}
       {cards.length === 0 ? (
         <div className="text-center py-24 space-y-4">
           <h2 className="text-xl font-semibold">Nenhum card ainda</h2>
@@ -480,13 +480,17 @@ export default function DeckPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          onClick={() => setExpandedCardId(null)}
+        >
           {cards.map((card) => {
             const dp = dragHandlers(card.id)
             return (
               <div
                 key={card.id}
                 {...dp}
+                onClick={(e) => e.stopPropagation()}
                 className={`transition-transform ${dp['data-drag-over'] ? 'scale-[1.02] ring-2 ring-primary rounded-xl' : ''}`}
               >
                 <FlashCard

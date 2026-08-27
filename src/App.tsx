@@ -12,6 +12,7 @@ import HoldAndAnswerGame from '@/pages/HoldAndAnswerGame'
 import QuizGame from '@/pages/QuizGame'
 import Profile from '@/pages/Profile'
 import AdminPage from '@/pages/AdminPage'
+import Explore from '@/pages/Explore'
 
 function NotFound() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/explore" element={<Explore />} />
 
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<Dashboard />} />

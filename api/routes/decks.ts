@@ -22,6 +22,8 @@ decksRouter.get('/', requireAuth, async (c) => {
       isPublic: decks.isPublic,
       pinEmoji: decks.pinEmoji,
       pinLabel: decks.pinLabel,
+      category: decks.category,
+      deckDifficulty: decks.deckDifficulty,
       createdAt: decks.createdAt,
       cardCount: sql<number>`count(${cards.id})::int`,
     })
@@ -46,6 +48,8 @@ decksRouter.get('/public', async (c) => {
       isPublic: decks.isPublic,
       pinEmoji: decks.pinEmoji,
       pinLabel: decks.pinLabel,
+      category: decks.category,
+      deckDifficulty: decks.deckDifficulty,
       createdAt: decks.createdAt,
       cardCount: sql<number>`count(${cards.id})::int`,
     })
@@ -90,6 +94,8 @@ decksRouter.post(
       name: z.string().min(1).max(100),
       description: z.string().max(500).optional(),
       isPublic: z.boolean().optional().default(false),
+      category: z.string().max(60).nullable().optional(),
+      deckDifficulty: z.enum(['easy', 'medium', 'hard']).optional(),
     }),
   ),
   async (c) => {
@@ -118,6 +124,8 @@ decksRouter.patch(
       isPublic: z.boolean().optional(),
       pinEmoji: z.string().max(10).nullable().optional(),
       pinLabel: z.string().max(60).nullable().optional(),
+      category: z.string().max(60).nullable().optional(),
+      deckDifficulty: z.enum(['easy', 'medium', 'hard']).optional(),
     }),
   ),
   async (c) => {

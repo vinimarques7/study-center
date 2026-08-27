@@ -20,8 +20,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { pluralize } from '@/lib/utils'
 import { useLocalOrder } from '@/lib/useLocalOrder'
+import { DECK_CATEGORIES, DIFFICULTY_LABEL } from '@/lib/categories'
 
 const DECK_PINS = [
   { emoji: '🟢', label: 'Tranquilo' },
@@ -51,6 +59,8 @@ function GameLaunchDialog({
 }) {
   const navigate = useNavigate()
   const [selected, setSelected] = useState<Set<string>>(new Set([primaryDeckId]))
+  const [count, setCount] = useState(10)
+  const estimatedMins = Math.ceil((count * 20) / 60)
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -67,10 +77,12 @@ function GameLaunchDialog({
 
   function launch(type: 'quiz' | 'hold') {
     const ids = [...selected]
-    const route =
+    let route =
       ids.length === 1
         ? `/decks/${ids[0]}/play/${type}`
         : `/play/${type}?decks=${ids.join(',')}`
+    const sep = route.includes('?') ? '&' : '?'
+    route += `${sep}count=${count}`
     navigate(route)
     onOpenChange(false)
   }
@@ -126,6 +138,26 @@ function GameLaunchDialog({
           </div>
         </div>
 
+        {/* Question count */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <Label>Quantidade de perguntas: <span className="font-bold text-primary">{count}</span></Label>
+            <span className="text-muted-foreground text-xs">⏱ ~{estimatedMins} min (quiz)</span>
+          </div>
+          <input
+            type="range"
+            min={5}
+            max={50}
+            step={5}
+            value={count}
+            onChange={(e) => setCount(Number(e.target.value))}
+            className="w-full accent-primary"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>5</span><span>50</span>
+          </div>
+        </div>
+
         {/* Game mode buttons */}
         <div className="grid grid-cols-2 gap-3 pt-1">
           <button
@@ -167,14 +199,25 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(false)
+  const [category, setCategory] = useState('')
+  const [deckDifficulty, setDeckDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
 
   const mutation = useMutation({
-    mutationFn: () => decksApi.create(token!, { name, description, isPublic }),
+    mutationFn: () =>
+      decksApi.create(token!, {
+        name,
+        description,
+        isPublic,
+        category: category || null,
+        deckDifficulty,
+      }),
     onSuccess: () => {
       toast.success('Deck criado!')
       setOpen(false)
       setName('')
       setDescription('')
+      setCategory('')
+      setDeckDifficulty('medium')
       onCreated()
     },
     onError: () => toast.error('Erro ao criar deck.'),
@@ -188,7 +231,7 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
           Novo Deck
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Criar novo deck</DialogTitle>
           <DialogDescription>Organize seus cards por tema ou assunto.</DialogDescription>
@@ -219,6 +262,34 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {DECK_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Dificuldade</Label>
+              <Select value={deckDifficulty} onValueChange={(v) => setDeckDifficulty(v as 'easy' | 'medium' | 'hard')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">{DIFFICULTY_LABEL.easy}</SelectItem>
+                  <SelectItem value="medium">{DIFFICULTY_LABEL.medium}</SelectItem>
+                  <SelectItem value="hard">{DIFFICULTY_LABEL.hard}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -228,7 +299,7 @@ function CreateDeckDialog({ onCreated }: { onCreated: () => void }) {
               className="rounded"
             />
             <Label htmlFor="deck-public" className="cursor-pointer">
-              Deck público (visível para todos)
+              Deck público (visível no hub de exploração)
             </Label>
           </div>
           <DialogFooter>

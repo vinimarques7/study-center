@@ -47,11 +47,12 @@ export default function QuizGame() {
   const multiIds = searchParams.get('decks')?.split(',').filter(Boolean) ?? []
   const isMulti = multiIds.length > 0
   const primaryId = isMulti ? multiIds[0] : (id ?? '')
+  const count = Math.max(5, Math.min(50, parseInt(searchParams.get('count') ?? '10', 10)))
 
   // Single-deck: use server-generated quiz
   const singleQuery = useQuery({
-    queryKey: ['quiz', primaryId],
-    queryFn: () => decksApi.getQuiz(token!, primaryId, 10),
+    queryKey: ['quiz', primaryId, count],
+    queryFn: () => decksApi.getQuiz(token!, primaryId, count),
     enabled: !!token && !!primaryId && !isMulti,
   })
 
@@ -68,7 +69,7 @@ export default function QuizGame() {
     if (isMulti) {
       const allCards = (multiQuery.data ?? []).flatMap((r) => r.cards)
       if (allCards.length < 2) return []
-      return generateQuestions(allCards, 10)
+      return generateQuestions(allCards, count)
     }
     return singleQuery.data?.questions ?? []
   }, [isMulti, multiQuery.data, singleQuery.data])

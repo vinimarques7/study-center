@@ -91,10 +91,10 @@ export const decksApi = {
 
   getMulti: (token: string, ids: string[]) =>
     Promise.all(ids.map((id) => request<{ deck: Deck; cards: Card[] }>(`/decks/${id}`, { token }))),
-  create: (token: string, body: { name: string; description?: string; isPublic?: boolean }) =>
+  create: (token: string, body: { name: string; description?: string; isPublic?: boolean; category?: string | null; deckDifficulty?: string }) =>
     request<{ deck: Deck }>('/decks', { method: 'POST', body: JSON.stringify(body), token }),
 
-  update: (token: string, id: string, body: { name?: string; description?: string; isPublic?: boolean; pinEmoji?: string | null; pinLabel?: string | null }) =>
+  update: (token: string, id: string, body: { name?: string; description?: string; isPublic?: boolean; pinEmoji?: string | null; pinLabel?: string | null; category?: string | null; deckDifficulty?: string }) =>
     request<{ deck: Deck }>(`/decks/${id}`, { method: 'PATCH', body: JSON.stringify(body), token }),
 
   delete: (token: string, id: string) =>
@@ -147,6 +147,8 @@ export interface Deck {
   isPublic: boolean
   pinEmoji: string | null
   pinLabel: string | null
+  category: string | null
+  deckDifficulty: 'easy' | 'medium' | 'hard'
   createdAt: string
   updatedAt: string
 }

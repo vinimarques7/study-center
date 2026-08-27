@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, LogOut, User, Shield, Menu, X } from 'lucide-react'
+import { LayoutDashboard, LogOut, User, Shield, Menu, X, Compass } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,12 @@ export function Navbar({ brandTitle }: { brandTitle: string }) {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-1">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/explore">
+              <Compass className="h-4 w-4" />
+              Explorar
+            </Link>
+          </Button>
           {user ? (
             <>
               <Button variant="ghost" size="sm" asChild>

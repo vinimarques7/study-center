@@ -62,6 +62,8 @@ export const decks = pgTable('decks', {
   isPublic: boolean('is_public').notNull().default(false),
   pinEmoji: varchar('pin_emoji', { length: 10 }),
   pinLabel: varchar('pin_label', { length: 60 }),
+  category: varchar('category', { length: 60 }),
+  deckDifficulty: difficultyEnum('deck_difficulty').notNull().default('medium'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })

@@ -23,6 +23,7 @@ export default function HoldAndAnswerGame() {
   const multiIds = searchParams.get('decks')?.split(',').filter(Boolean) ?? []
   const isMulti = multiIds.length > 0
   const primaryId = isMulti ? multiIds[0] : (id ?? '')
+  const countParam = parseInt(searchParams.get('count') ?? '0', 10)
 
   const singleQuery = useQuery({
     queryKey: ['deck', primaryId],
@@ -39,10 +40,14 @@ export default function HoldAndAnswerGame() {
   const isLoading = isMulti ? multiQuery.isLoading : singleQuery.isLoading
 
   const deck = isMulti ? multiQuery.data?.[0]?.deck : singleQuery.data?.deck
+  const allCards: Card[] = isMulti
+    ? (multiQuery.data ?? []).flatMap((r) => r.cards).sort(() => Math.random() - 0.5)
+    : (singleQuery.data?.cards ?? [])
+  const cards = countParam > 0 ? allCards.slice(0, countParam) : allCards
 
-  if (!deck || cards.length === 0) {
-    return <div className="container py-8">Deck sem cards para jogar.</div>
-  }
+  const deckName = isMulti
+    ? (multiQuery.data ?? []).map((r) => r.deck.name).join(' + ')
+    : (deck?.name ?? '')
 
   const current = cards[index]
   const total = cards.length
