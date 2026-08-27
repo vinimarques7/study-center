@@ -1,0 +1,213 @@
+import { useState } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { ArrowLeft, RotateCcw, CheckCircle2, XCircle, Trophy, Users } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { decksApi } from '@/lib/api'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
+import { toast } from 'sonner'
+
+interface RoundResult {
+  cardId: string
+  hit: boolean
+}
+
+export default function HoldAndAnswerGame() {
+  const { id } = useParams<{ id: string }>()
+  const { token } = useAuth()
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['deck', id],
+    queryFn: () => decksApi.get(token!, id!),
+    enabled: !!token && !!id,
+  })
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: { score: number; totalCards: number; correctCards: number }) =>
+      decksApi.saveSession(token!, id!, {
+        gameType: 'hold_and_answer',
+        ...payload,
+      }),
+  })
+
+  const [index, setIndex] = useState(0)
+  const [flipped, setFlipped] = useState(false)
+  const [results, setResults] = useState<RoundResult[]>([])
+  const [finished, setFinished] = useState(false)
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  const deck = data?.deck
+  const cards = data?.cards ?? []
+
+  if (!deck || cards.length === 0) {
+    return <div className="container py-8">Deck sem cards para jogar.</div>
+  }
+
+  const current = cards[index]
+  const total = cards.length
+  const correct = results.filter((r) => r.hit).length
+  const wrong = results.filter((r) => !r.hit).length
+  const score = Math.round((correct / Math.max(1, results.length)) * 100)
+
+  function mark(hit: boolean) {
+    const next = [...results, { cardId: current.id, hit }]
+    setResults(next)
+
+    if (index === total - 1) {
+      setFinished(true)
+      const finalCorrect = next.filter((r) => r.hit).length
+      const finalScore = Math.round((finalCorrect / total) * 100)
+      saveMutation
+        .mutateAsync({ score: finalScore, totalCards: total, correctCards: finalCorrect })
+        .catch(() => toast.error('Não foi possível salvar o resultado da partida.'))
+      return
+    }
+
+    setIndex((i) => i + 1)
+    setFlipped(false)
+  }
+
+  function restart() {
+    setIndex(0)
+    setFlipped(false)
+    setResults([])
+    setFinished(false)
+  }
+
+  return (
+    <div className="container py-8 max-w-3xl page-enter">
+      <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
+        <Link to={`/decks/${id}`}>
+          <ArrowLeft className="h-4 w-4" /> Voltar ao deck
+        </Link>
+      </Button>
+
+      <div className="mb-6">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+          <Users className="h-4 w-4" />
+          Modo Segura e Responde
+        </div>
+        <h1 className="text-3xl font-bold">{deck.name}</h1>
+      </div>
+
+      {!finished ? (
+        <>
+          <div className="mb-6 space-y-2">
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>
+                Card {index + 1} de {total}
+              </span>
+              <span>{score}% de acerto</span>
+            </div>
+            <Progress value={((index + 1) / total) * 100} />
+          </div>
+
+          <div className="card-flip-container h-[420px] mb-6">
+            <div className={`card-flip-inner h-full ${flipped ? 'flipped' : ''}`}>
+              <Card className="card-face h-full flex flex-col cursor-pointer" onClick={() => setFlipped(true)}>
+                <CardHeader>
+                  <CardTitle className="text-sm text-muted-foreground uppercase tracking-wide">
+                    Pergunta
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 flex items-center justify-center text-center">
+                  <p className="text-2xl font-semibold leading-relaxed">{current.question}</p>
+                </CardContent>
+              </Card>
+
+              <Card className="card-face card-face-back h-full flex flex-col cursor-pointer" onClick={() => setFlipped(false)}>
+                <CardHeader>
+                  <CardTitle className="text-sm text-muted-foreground uppercase tracking-wide">
+                    Resposta
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-4 overflow-y-auto">
+                  <p className="text-xl font-semibold">{current.answer}</p>
+                  {current.explanation && (
+                    <p className="text-sm text-muted-foreground">{current.explanation}</p>
+                  )}
+                  {current.analogy && (
+                    <div className="p-3 rounded-lg bg-muted border-l-2 border-primary/40">
+                      <p className="text-xs font-medium text-primary mb-1">Analogia</p>
+                      <p className="text-sm italic">{current.analogy}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              size="lg"
+              variant="destructive"
+              className="h-14 text-base"
+              onClick={() => mark(false)}
+            >
+              <XCircle className="h-5 w-5" />
+              Errou
+            </Button>
+            <Button
+              size="lg"
+              className="h-14 text-base bg-green-600 hover:bg-green-700"
+              onClick={() => mark(true)}
+            >
+              <CheckCircle2 className="h-5 w-5" />
+              Acertou
+            </Button>
+          </div>
+
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            Toque no card para virar pergunta/resposta
+          </p>
+        </>
+      ) : (
+        <Card className="text-center py-8">
+          <CardContent className="space-y-6">
+            <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Trophy className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Partida finalizada!</h2>
+              <p className="text-muted-foreground mt-1">Veja seu desempenho abaixo</p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold">{correct}</p>
+                <p className="text-xs text-muted-foreground">Acertos</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold">{wrong}</p>
+                <p className="text-xs text-muted-foreground">Erros</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold">{Math.round((correct / total) * 100)}%</p>
+                <p className="text-xs text-muted-foreground">Taxa</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="outline" onClick={restart}>
+                <RotateCcw className="h-4 w-4" />
+                Jogar novamente
+              </Button>
+              <Button asChild>
+                <Link to={`/decks/${id}/play/quiz`}>Tentar modo Quiz</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
