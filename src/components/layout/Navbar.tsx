@@ -55,7 +55,7 @@ export function Navbar({ brandTitle }: { brandTitle: string }) {
               <Button variant="ghost" size="sm" asChild>
                 <Link to="/profile">
                   <User className="h-4 w-4" />
-                  {user.email.split('@')[0]}
+                  {user.displayName ?? user.email.split('@')[0]}
                 </Link>
               </Button>
 

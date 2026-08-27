@@ -146,6 +146,18 @@ body.has-bg-image footer {
 
 .card-face-back {
   transform: rotateY(180deg);
+  z-index: 1;
+}
+
+/* backdrop-filter breaks backface-visibility in Chromium, causing both
+   faces to render simultaneously (mirrored text bleed-through). Disable it
+   and force a fully opaque background on flip-card faces so nothing behind
+   can bleed through even if backface-visibility isn't fully honored. */
+.card-face.glass-surface,
+body.has-bg-image .card-face.glass-surface {
+  background: hsl(var(--card));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* ─── Timer countdown bar ─────────────────────────────────────────────────── */

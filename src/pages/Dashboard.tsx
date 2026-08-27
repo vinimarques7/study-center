@@ -128,6 +128,11 @@ function GameLaunchDialog({
                 <span className="text-sm flex-1 truncate">
                   {d.pinEmoji && <span className="mr-1">{d.pinEmoji}</span>}
                   {d.name}
+                  {d.creatorName && (
+                    <span className="ml-1.5 text-[10px] text-muted-foreground rounded-full bg-muted px-1.5 py-0.5">
+                      salvo
+                    </span>
+                  )}
                 </span>
                 <span className="text-xs text-muted-foreground">{d.cardCount} cards</span>
               </label>
@@ -563,7 +568,7 @@ function DeckCard({
         <Button size="sm" variant="outline" asChild className="flex-1">
           <Link to={`/decks/${deck.id}`}>Ver cards</Link>
         </Button>
-        {deck.cardCount >= 2 && (
+        {deck.cardCount >= 2 ? (
           <Button
             size="sm"
             className="flex-1"
@@ -571,6 +576,20 @@ function DeckCard({
           >
             <Play className="h-3.5 w-3.5" />
             Jogar
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 text-muted-foreground cursor-default"
+            disabled
+            title="Adicione pelo menos 2 cards para jogar"
+          >
+            <Play className="h-3.5 w-3.5 opacity-40" />
+            Jogar
+            <span className="ml-1 text-[10px] rounded-full bg-muted-foreground/15 px-1.5 py-0.5 leading-none">
+              +2 cards
+            </span>
           </Button>
         )}
       </CardFooter>
@@ -685,7 +704,11 @@ export default function Dashboard() {
           open={!!launchDeckId}
           onOpenChange={(v) => { if (!v) setLaunchDeckId(null) }}
           primaryDeckId={launchDeckId}
-          allDecks={rawDecks}
+          allDecks={[
+            ...rawDecks,
+            // add saved decks, deduplicating by id
+            ...savedDecks.filter((s) => !rawDecks.some((d) => d.id === s.id)),
+          ]}
         />
       )}
 
@@ -731,9 +754,23 @@ export default function Dashboard() {
                     <Button size="sm" variant="outline" asChild className="flex-1">
                       <Link to={`/decks/${deck.id}`}>Ver cards</Link>
                     </Button>
-                    {deck.cardCount >= 2 && (
+                    {deck.cardCount >= 2 ? (
                       <Button size="sm" className="flex-1" onClick={() => setLaunchDeckId(deck.id)}>
                         <Play className="h-3.5 w-3.5" /> Jogar
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-muted-foreground cursor-default"
+                        disabled
+                        title="Adicione pelo menos 2 cards para jogar"
+                      >
+                        <Play className="h-3.5 w-3.5 opacity-40" />
+                        Jogar
+                        <span className="ml-1 text-[10px] rounded-full bg-muted-foreground/15 px-1.5 py-0.5 leading-none">
+                          +2 cards
+                        </span>
                       </Button>
                     )}
                   </CardFooter>

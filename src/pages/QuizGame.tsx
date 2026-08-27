@@ -64,6 +64,7 @@ export default function QuizGame() {
   })
 
   const isLoading = isMulti ? multiQuery.isLoading : singleQuery.isLoading
+  const isError = isMulti ? multiQuery.isError : singleQuery.isError
 
   const questions: QuizQuestion[] = useMemo(() => {
     if (isMulti) {
@@ -170,6 +171,26 @@ export default function QuizGame() {
     )
   }
 
+  if (isError) {
+    return (
+      <div className="container py-8">
+        <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
+          <Link to={id ? `/decks/${primaryId}` : '/dashboard'}>
+            <ArrowLeft className="h-4 w-4" /> Voltar
+          </Link>
+        </Button>
+        <UICard>
+          <CardContent className="py-8 text-center space-y-3">
+            <h2 className="text-xl font-semibold">Erro ao carregar quiz</h2>
+            <p className="text-muted-foreground">
+              Não foi possível carregar as perguntas do quiz.
+            </p>
+          </CardContent>
+        </UICard>
+      </div>
+    )
+  }
+
   if (!questions.length) {
     return (
       <div className="container py-8">
@@ -241,7 +262,7 @@ export default function QuizGame() {
   return (
     <div className="container py-8 max-w-3xl page-enter">
       <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
-        <Link to={id ? `/decks/${primaryId}` : '/dashboard'}>
+        <Link to={isMulti ? '/dashboard' : `/decks/${primaryId}`}>
           <ArrowLeft className="h-4 w-4" /> Voltar
         </Link>
       </Button>
@@ -266,11 +287,11 @@ export default function QuizGame() {
         </div>
       </div>
 
-      <Card className="mb-4">
+      <UICard className="mb-4">
         <CardContent className="pt-6">
           <h2 className="text-xl font-semibold leading-relaxed">{current.question}</h2>
         </CardContent>
-      </Card>
+      </UICard>
 
       <div className="grid sm:grid-cols-2 gap-3">
         {current.options.map((opt, optionIndex) => {

@@ -38,6 +38,7 @@ export default function HoldAndAnswerGame() {
   })
 
   const isLoading = isMulti ? multiQuery.isLoading : singleQuery.isLoading
+  const isError = isMulti ? multiQuery.isError : singleQuery.isError
 
   const deck = isMulti ? multiQuery.data?.[0]?.deck : singleQuery.data?.deck
   const allCards: Card[] = isMulti
@@ -66,6 +67,26 @@ export default function HoldAndAnswerGame() {
     return (
       <div className="flex h-[60vh] items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="container py-8 max-w-3xl">
+        <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
+          <Link to={`/decks/${id}`}>
+            <ArrowLeft className="h-4 w-4" /> Voltar ao deck
+          </Link>
+        </Button>
+        <UICard>
+          <CardContent className="py-8 text-center space-y-3">
+            <h2 className="text-xl font-semibold">Erro ao carregar deck</h2>
+            <p className="text-muted-foreground">
+              Não foi possível carregar o deck para o jogo.
+            </p>
+          </CardContent>
+        </UICard>
       </div>
     )
   }
@@ -108,7 +129,7 @@ export default function HoldAndAnswerGame() {
   return (
     <div className="container py-8 max-w-3xl page-enter">
       <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
-        <Link to={`/decks/${id}`}>
+        <Link to={`/decks/${primaryId}`}>
           <ArrowLeft className="h-4 w-4" /> Voltar ao deck
         </Link>
       </Button>
@@ -239,7 +260,7 @@ export default function HoldAndAnswerGame() {
                 Jogar novamente
               </Button>
               <Button asChild>
-                <Link to={`/decks/${id}/play/quiz`}>Tentar modo Quiz</Link>
+                <Link to={`/decks/${primaryId}/play/quiz`}>Tentar modo Quiz</Link>
               </Button>
             </div>
           </CardContent>
