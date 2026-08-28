@@ -8,6 +8,16 @@ import { cards, decks, siteSettings, users } from './schema'
 import argon2 from 'argon2'
 
 async function main() {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'true') {
+    console.error(
+      '❌ Seed bloqueado: NODE_ENV=production detectado.\n' +
+        '   Este script cria uma conta admin com senha fraca e previsível (admin@studycenter.app / admin123).\n' +
+        '   Se você realmente quer rodá-lo em produção (ex: bootstrap inicial), defina ALLOW_PROD_SEED=true\n' +
+        '   e troque a senha do admin imediatamente depois pelo painel de administração.',
+    )
+    process.exit(1)
+  }
+
   console.log('🌱 Iniciando seed...')
 
   // ─── Configurações do site ──────────────────────────────────────────────────
