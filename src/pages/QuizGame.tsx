@@ -87,7 +87,6 @@ export default function QuizGame() {
       }),
   })
 
-  const [questionsKey, setQuestionsKey] = useState(0) // forces regeneration on restart
   const [idx, setIdx] = useState(0)
   const [answers, setAnswers] = useState<AnswerRecord[]>([])
   const [timeLeft, setTimeLeft] = useState(TIME_PER_QUESTION_MS)
@@ -159,7 +158,6 @@ export default function QuizGame() {
     setTimeLeft(TIME_PER_QUESTION_MS)
     setLocked(false)
     setFinished(false)
-    setQuestionsKey((k) => k + 1)
     if (!isMulti) await singleQuery.refetch()
   }
 

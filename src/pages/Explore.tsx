@@ -136,7 +136,7 @@ function PublicDeckCard({ deck, isSaved, onSave, onUnsave, saving }: {
 }
 
 export default function Explore() {
-  const { user, token } = useAuth()
+  const { token } = useAuth()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
