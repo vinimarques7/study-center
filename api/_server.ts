@@ -3,7 +3,7 @@
  */
 import 'dotenv/config'
 import { serve } from '@hono/node-server'
-import app from './app'
+import app from './_app'
 
 const PORT = parseInt(process.env.API_PORT ?? '3001', 10)
 

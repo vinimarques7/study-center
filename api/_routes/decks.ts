@@ -2,9 +2,9 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { eq, and, sql } from 'drizzle-orm'
-import { db } from '../db/index'
-import { decks, cards, savedDecks, users } from '../db/schema'
-import { requireAuth } from '../middleware/auth'
+import { db } from '../_db/index'
+import { decks, cards, savedDecks, users } from '../_db/schema'
+import { requireAuth } from '../_middleware/auth'
 
 export const decksRouter = new Hono()
 
@@ -311,7 +311,7 @@ decksRouter.post(
     if (!deck) return c.json({ error: 'Deck não encontrado.' }, 404)
 
     // Insert game session (import gameSessions table)
-    const { gameSessions } = await import('../db/schema')
+    const { gameSessions } = await import('../_db/schema')
     const [session] = await db
       .insert(gameSessions)
       .values({ userId: sub!, deckId: id, ...body })

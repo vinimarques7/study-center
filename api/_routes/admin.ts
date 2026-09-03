@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { db } from '../db/index'
-import { siteSettings } from '../db/schema'
-import { requireAdmin } from '../middleware/auth'
+import { db } from '../_db/index'
+import { siteSettings } from '../_db/schema'
+import { requireAdmin } from '../_middleware/auth'
 
 export const adminRouter = new Hono()
 

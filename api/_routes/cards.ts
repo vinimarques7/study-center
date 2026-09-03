@@ -3,9 +3,9 @@ import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { put } from '@vercel/blob'
-import { db } from '../db/index'
-import { cards, decks } from '../db/schema'
-import { requireAuth } from '../middleware/auth'
+import { db } from '../_db/index'
+import { cards, decks } from '../_db/schema'
+import { requireAuth } from '../_middleware/auth'
 
 export const cardsRouter = new Hono()
 

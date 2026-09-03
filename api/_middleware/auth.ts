@@ -1,7 +1,7 @@
 import type { Context, Next } from 'hono'
 import { createMiddleware } from 'hono/factory'
 import { HTTPException } from 'hono/http-exception'
-import { verifyAccessToken, type AccessTokenPayload } from '../lib/jwt'
+import { verifyAccessToken, type AccessTokenPayload } from '../_lib/jwt'
 
 type AuthEnv = {
   Variables: {
