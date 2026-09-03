@@ -124,7 +124,7 @@ users, refresh_tokens, decks, cards, saved_decks, site_settings, game_sessions
 - `saved_decks` — relação N:N entre usuários e decks públicos salvos
 - `game_sessions` — histórico de partidas (quiz / segura e responde) por deck
 
-Ver detalhamento completo na especificação técnica ([`especificacao-flashcards-app.md`](./especificacao-flashcards-app.md)) e no schema Drizzle ([`api/db/schema.ts`](./api/db/schema.ts)).
+Ver detalhamento completo na especificação técnica ([`especificacao-flashcards-app.md`](./especificacao-flashcards-app.md)) e no schema Drizzle ([`api/_db/schema.ts`](./api/_db/schema.ts)).
 
 ## 📝 Roadmap / decisões já fechadas
 

@@ -3,10 +3,10 @@ import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import argon2 from 'argon2'
 import { eq, and } from 'drizzle-orm'
-import { db } from '../db/index'
-import { users, refreshTokens } from '../db/schema'
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt'
-import { rateLimitLogin } from '../middleware/rateLimit'
+import { db } from '../_db/index.js'
+import { users, refreshTokens } from '../_db/schema.js'
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../_lib/jwt.js'
+import { rateLimitLogin } from '../_middleware/rateLimit.js'
 
 export const authRouter = new Hono()
 

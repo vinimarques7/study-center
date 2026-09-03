@@ -37,10 +37,10 @@ flowchart LR
 
 - **Framework**: [Hono](https://hono.dev) rodando sobre Node.js (via `@hono/node-server` em dev/Docker, e adaptado para serverless na Vercel).
 - **Entradas do servidor**:
-  - [`api/app.ts`](../api/app.ts) — monta o app Hono, CORS, logger, rotas e error handler global.
-  - [`api/server.ts`](../api/server.ts) — bootstrap local (Node server) usado em `npm run dev:api` / Docker.
+  - [`api/_app.ts`](../api/_app.ts) — monta o app Hono, CORS, logger, rotas e error handler global.
+  - [`api/_server.ts`](../api/_server.ts) — bootstrap local (Node server) usado em `npm run dev:api` / Docker.
   - [`api/index.ts`](../api/index.ts) — handler de entrada para a Vercel (serverless function).
-- **Rotas** (`api/routes/`):
+- **Rotas** (`api/_routes/`):
   | Arquivo | Prefixo | Endpoints principais |
   |---|---|---|
   | `auth.ts` | `/api/auth` | `POST /register`, `POST /login` (com rate limit), `POST /refresh`, `POST /logout` |
@@ -49,8 +49,8 @@ flowchart LR
   | `cards.ts` | `/api/cards` | `POST /`, `PATCH /:id`, `DELETE /:id`, `POST /:id/image` |
   | `admin.ts` | `/api/admin` | `GET /settings` (público), `PUT /settings/:key`, `PUT /settings` (batch, admin) |
 - **Validação de entrada**: [Zod](https://zod.dev) via `@hono/zod-validator` (`zValidator('json', schema)`) em praticamente todas as rotas que recebem body — rejeita payloads malformados antes de tocar no banco.
-- **Banco de dados**: PostgreSQL + [Drizzle ORM](https://orm.drizzle.team). Schema declarado em [`api/db/schema.ts`](../api/db/schema.ts), sincronizado via `drizzle-kit push` (sem migrations SQL versionadas — schema-as-code).
-- **Seeds**: scripts em `api/db/seed.ts`, `seed-devops.ts`, `seed-teste2.ts`, `check-decks.ts`, `cleanup-test2.ts` para popular/depurar dados de desenvolvimento.
+- **Banco de dados**: PostgreSQL + [Drizzle ORM](https://orm.drizzle.team). Schema declarado em [`api/_db/schema.ts`](../api/_db/schema.ts), sincronizado via `drizzle-kit push` (sem migrations SQL versionadas — schema-as-code).
+- **Seeds**: scripts em `api/_db/seed.ts`, `seed-devops.ts`, `seed-teste2.ts`, `check-decks.ts`, `cleanup-test2.ts` para popular/depurar dados de desenvolvimento.
 
 ### 2.2 Modelo de dados
 
@@ -86,7 +86,7 @@ Resumo do que já está implementado, mapeado (informalmente) ao OWASP Top 10:
 | **Hash de senha** | `argon2id` (via lib `argon2`), memory-hard, resistente a GPU cracking. Nunca guardamos senha em texto puro. |
 | **Timing attack no login** | Quando o e-mail não existe, ainda assim rodamos um `argon2.hash('dummy', ...)` para gastar tempo equivalente e não vazar, pelo tempo de resposta, se o e-mail existe ou não. |
 | **Revogação/rotação de refresh token** | Cada refresh token tem um `jti` único gravado em `refresh_tokens`. A cada uso em `/auth/refresh`, o token antigo é marcado `revoked = true` e um novo é emitido (rotação) — mitiga replay de token roubado. `logout` revoga o token atual. |
-| **Autorização** | Middlewares `requireAuth` (qualquer usuário logado) e `requireAdmin` (checa `role === 'admin'` a partir do payload do JWT, não de um valor vindo do client) em `api/middleware/auth.ts`. |
+| **Autorização** | Middlewares `requireAuth` (qualquer usuário logado) e `requireAdmin` (checa `role === 'admin'` a partir do payload do JWT, não de um valor vindo do client) em `api/_middleware/auth.ts`. |
 | **Rate limiting** | `rateLimitLogin` (Upstash Redis, sliding window 5 tentativas / 15 min por IP) protege `/auth/login` contra brute-force. Se as env vars do Upstash não estiverem configuradas, o limitador é desabilitado silenciosamente (modo dev). |
 | **Validação de entrada** | Zod em todas as rotas de mutação — tipos, tamanhos máximos (`.max(...)`), formatos (e-mail, hex color, URL http(s)) validados antes de qualquer lógica de negócio. Evita injeção de dados malformados e parte do risco de mass assignment. |
 | **SQL Injection** | Mitigado estruturalmente: todo acesso a dado passa pelo Drizzle ORM com queries parametrizadas — não há concatenação de SQL cru em nenhuma rota. |
@@ -213,13 +213,13 @@ Durante o desenvolvimento, discutimos se o projeto se beneficiaria de um **[MCP]
 ## 8. Onde encontrar cada coisa (mapa rápido)
 
 ```
-api/app.ts                    → montagem do Hono, CORS, error handler
-api/server.ts / api/index.ts  → entrypoints (Node local / Vercel serverless)
-api/lib/jwt.ts                → assinatura/verificação de access e refresh tokens
-api/middleware/auth.ts        → requireAuth / requireAdmin
-api/middleware/rateLimit.ts   → rate limit de login (Upstash)
-api/db/schema.ts              → schema Drizzle (fonte da verdade do modelo de dados)
-api/routes/*.ts                → handlers HTTP por domínio
+api/_app.ts                   → montagem do Hono, CORS, error handler
+api/_server.ts / api/index.ts → entrypoints (Node local / Vercel serverless)
+api/_lib/jwt.ts                → assinatura/verificação de access e refresh tokens
+api/_middleware/auth.ts        → requireAuth / requireAdmin
+api/_middleware/rateLimit.ts   → rate limit de login (Upstash)
+api/_db/schema.ts              → schema Drizzle (fonte da verdade do modelo de dados)
+api/_routes/*.ts                → handlers HTTP por domínio
 src/contexts/AuthContext.tsx  → estado de sessão no frontend
 src/lib/api.ts                → clients HTTP tipados (fetch + TanStack Query)
 src/pages/*.tsx                → telas da aplicação

@@ -1,18 +1,25 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 
 function uniqueEmail() {
   return `e2e_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@studycenter.test`
+}
+
+async function registerUser(page: Page, email: string, password: string, displayName: string) {
+  await page.goto('/register')
+  await page.getByLabel('E-mail').fill(email)
+  await page.getByLabel('Senha').first().fill(password)
+  await page.getByLabel('Confirmar senha').fill(password)
+  await page.getByRole('button', { name: 'Próximo' }).click()
+
+  await page.getByLabel('Nome de perfil *').fill(displayName)
+  await page.getByRole('button', { name: 'Criar conta' }).click()
 }
 
 test('registro, login e criacao de deck', async ({ page }) => {
   const email = uniqueEmail()
   const password = 'password123'
 
-  await page.goto('/register')
-  await page.getByLabel('E-mail').fill(email)
-  await page.getByLabel('Senha').first().fill(password)
-  await page.getByLabel('Confirmar senha').fill(password)
-  await page.getByRole('button', { name: 'Criar conta' }).click()
+  await registerUser(page, email, password, 'E2E Tester')
 
   await expect(page).toHaveURL(/\/dashboard/)
   await expect(page.getByRole('heading', { name: 'Meus Decks' })).toBeVisible()
@@ -29,11 +36,7 @@ test('fluxo de quiz e segura e responde aparece com deck >= 2 cards', async ({ p
   const email = uniqueEmail()
   const password = 'password123'
 
-  await page.goto('/register')
-  await page.getByLabel('E-mail').fill(email)
-  await page.getByLabel('Senha').first().fill(password)
-  await page.getByLabel('Confirmar senha').fill(password)
-  await page.getByRole('button', { name: 'Criar conta' }).click()
+  await registerUser(page, email, password, 'E2E Tester')
 
   await page.getByRole('button', { name: 'Novo Deck' }).click()
   await page.getByLabel('Nome *').fill('Deck Jogo E2E')

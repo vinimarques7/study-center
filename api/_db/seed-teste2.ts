@@ -2,8 +2,8 @@
  * Script one-shot: cria usuário teste2 + deck DevOps - Básico + card CI/CD
  */
 import 'dotenv/config'
-import { db } from './index'
-import { users, decks, cards } from './schema'
+import { db } from './index.js'
+import { users, decks, cards } from './schema.js'
 import argon2 from 'argon2'
 import { eq } from 'drizzle-orm'
 
