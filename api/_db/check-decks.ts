@@ -1,6 +1,6 @@
 import 'dotenv/config'
-import { db } from './index'
-import { decks, users, cards } from './schema'
+import { db } from './index.js'
+import { decks, users, cards } from './schema.js'
 import { eq } from 'drizzle-orm'
 
 async function main() {

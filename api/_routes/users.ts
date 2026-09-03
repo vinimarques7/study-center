@@ -3,9 +3,9 @@ import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import argon2 from 'argon2'
-import { db } from '../_db/index'
-import { users } from '../_db/schema'
-import { requireAuth, requireAdmin } from '../_middleware/auth'
+import { db } from '../_db/index.js'
+import { users } from '../_db/schema.js'
+import { requireAuth, requireAdmin } from '../_middleware/auth.js'
 
 export const usersRouter = new Hono()
 

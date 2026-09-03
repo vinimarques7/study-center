@@ -2,8 +2,8 @@
  * Adiciona 5 cards de DevOps ao deck "DevOps - Básico" do Elias Manoel
  */
 import 'dotenv/config'
-import { db } from './index'
-import { decks, cards } from './schema'
+import { db } from './index.js'
+import { decks, cards } from './schema.js'
 import { eq } from 'drizzle-orm'
 
 const DEVOPS_CARDS = [

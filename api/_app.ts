@@ -2,11 +2,11 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { HTTPException } from 'hono/http-exception'
-import { authRouter } from './_routes/auth'
-import { usersRouter } from './_routes/users'
-import { decksRouter } from './_routes/decks'
-import { cardsRouter } from './_routes/cards'
-import { adminRouter } from './_routes/admin'
+import { authRouter } from './_routes/auth.js'
+import { usersRouter } from './_routes/users.js'
+import { decksRouter } from './_routes/decks.js'
+import { cardsRouter } from './_routes/cards.js'
+import { adminRouter } from './_routes/admin.js'
 
 const app = new Hono().basePath('/api')
 

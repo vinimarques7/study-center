@@ -3,8 +3,8 @@
  * Execute: npm run db:seed
  */
 import 'dotenv/config'
-import { db } from './index'
-import { cards, decks, siteSettings, users } from './schema'
+import { db } from './index.js'
+import { cards, decks, siteSettings, users } from './schema.js'
 import argon2 from 'argon2'
 
 async function main() {
