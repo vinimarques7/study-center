@@ -94,6 +94,12 @@ export function Navbar({ brandTitle }: { brandTitle: string }) {
         )}
       >
         <nav className="container flex flex-col gap-1 py-4">
+          <Button variant="ghost" className="justify-start" asChild>
+            <Link to="/explore" onClick={() => setMobileOpen(false)}>
+              <Compass className="h-4 w-4" />
+              Explorar
+            </Link>
+          </Button>
           {user ? (
             <>
               <Button variant="ghost" className="justify-start" asChild>
